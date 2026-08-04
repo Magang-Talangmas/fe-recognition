@@ -1,12 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
+import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-} from "@/components/ui/breadcrumb";
 import {
   SidebarInset,
   SidebarProvider,
@@ -34,21 +29,10 @@ export default function DashboardLayout({
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-sidebar px-4">
           <SidebarTrigger />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
+          <DashboardBreadcrumb />
           <div className="ml-auto flex items-center gap-3">
             <NotificationBell />
             <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="ghost" />}>
-                <Avatar className="size-8">
-                  <AvatarFallback>SA</AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>
