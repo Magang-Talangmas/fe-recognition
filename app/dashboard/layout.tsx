@@ -1,6 +1,5 @@
-import { Bell } from "lucide-react";
-
 import { AppSidebar } from "@/components/app-sidebar";
+import { NotificationBell } from "@/components/notification-bell";
 import { Button } from "@/components/ui/button";
 import {
   Breadcrumb,
@@ -16,6 +15,7 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -42,15 +42,7 @@ export default function DashboardLayout({
             </BreadcrumbList>
           </Breadcrumb>
           <div className="ml-auto flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative text-muted-foreground"
-              aria-label="Notifikasi"
-            >
-              <Bell className="size-4" />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500" />
-            </Button>
+            <NotificationBell />
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" />}>
                 <Avatar className="size-8">
@@ -58,14 +50,16 @@ export default function DashboardLayout({
                 </Avatar>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-sm font-semibold">Super Admin</span>
-                    <span className="text-xs text-muted-foreground">
-                      PT Talangmas Anugerah Semesta
-                    </span>
-                  </div>
-                </DropdownMenuLabel>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-sm font-semibold">Super Admin</span>
+                      <span className="text-xs text-muted-foreground">
+                        PT Talangmas Anugerah Semesta
+                      </span>
+                    </div>
+                  </DropdownMenuLabel>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Pengaturan</DropdownMenuItem>
                 <DropdownMenuItem>Keluar</DropdownMenuItem>

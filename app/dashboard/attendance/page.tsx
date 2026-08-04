@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { pushNotification } from "@/components/notification-store";
 
 type Status =
   | "Not Checked In"
@@ -163,6 +164,11 @@ export default function AttendancePage() {
     setRecords((prev) =>
       prev.map((r) => (r.id === editing.id ? { ...editing } : r))
     );
+    pushNotification({
+      type: "checkin",
+      title: "Catatan Kehadiran Diperbaiki",
+      description: `${editing.employee} (${editing.id}) · check-in ${editing.checkIn || "-"} · check-out ${editing.checkOut || "-"}`,
+    });
     setEditing(null);
   }
 

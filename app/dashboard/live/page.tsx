@@ -14,6 +14,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { pushNotification } from "@/components/notification-store";
 
 type Feed = {
   id: string;
@@ -58,17 +59,33 @@ export default function LiveMonitoringPage() {
   function refresh() {
     setRefreshing(true);
     const now = new Date().toLocaleTimeString("id-ID", { hour12: false });
+    const isUnknown = Math.random() < 0.2;
+    const camera = live[0]?.camera ?? "CAM-01";
+    const confidence = 90 + Math.round(Math.random() * 9);
     setLive((prev) => [
       {
         id: `REC-${Date.now()}`,
-        name: prev[0]?.name ?? "Unknown",
-        camera: prev[0]?.camera ?? "CAM-01",
+        name: isUnknown ? "Unknown" : (prev[0]?.name ?? "Karyawan"),
+        camera,
         time: now,
-        confidence: 90 + Math.round(Math.random() * 9),
-        status: "Verified" as const,
+        confidence,
+        status: isUnknown ? ("Unknown" as const) : ("Verified" as const),
       },
       ...prev,
     ].slice(0, 8));
+    if (isUnknown) {
+      pushNotification({
+        type: "unknown",
+        title: "Wajah Tidak Dikenal",
+        description: `Wajah unknown terdeteksi di ${camera} (confidence ${confidence}.0%).`,
+      });
+    } else {
+      pushNotification({
+        type: "recognition",
+        title: "Pengenalan Berhasil",
+        description: `${live[0]?.name ?? "Karyawan"} diverifikasi di ${camera} (confidence ${confidence}.0%).`,
+      });
+    }
     setTimeout(() => setRefreshing(false), 600);
   }
 
