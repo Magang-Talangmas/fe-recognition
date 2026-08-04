@@ -22,14 +22,27 @@ export async function apiFetch<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const token = getToken();
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers ?? {}),
     },
   });
+
+  if (res.status === 401 && typeof window !== "undefined") {
+    window.localStorage.removeItem("token");
+    window.localStorage.removeItem("user");
+    if (window.location.pathname !== "/") {
+      window.location.assign("/");
+    }
+  }
+
+  if (res.status === 204) return undefined as T;
+
   const json = (await res.json()) as {
     success: boolean;
     message?: string;
