@@ -12,28 +12,28 @@ import {
 } from "@/components/ui/breadcrumb";
 
 const labelMap: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/dashboard/employee": "Employee",
-  "/dashboard/attendance": "Attendance",
-  "/dashboard/recognition": "Face Recognition",
-  "/dashboard/live": "Live Monitoring",
-  "/dashboard/cctv": "CCTV",
-  "/dashboard/reports": "Reports",
-  "/dashboard/notifications": "Notifications",
-  "/dashboard/schedule": "Work Schedule",
-  "/dashboard/settings": "Settings",
+  "/superadmin": "Dashboard",
+  "/superadmin/employee": "Employee",
+  "/superadmin/attendance": "Attendance",
+  "/superadmin/recognition": "Face Recognition",
+  "/superadmin/live": "Live Monitoring",
+  "/superadmin/cctv": "CCTV",
+  "/superadmin/reports": "Reports",
+  "/superadmin/notifications": "Notifications",
+  "/superadmin/schedule": "Work Schedule",
+  "/superadmin/settings": "Settings",
 };
 
 export function DashboardBreadcrumb() {
   const pathname = usePathname();
-  const isHome = pathname === "/dashboard";
+  const isHome = pathname === "/superadmin";
   const label = labelMap[pathname] ?? "Dashboard";
 
   return (
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+          <BreadcrumbLink href="/superadmin">Dashboard</BreadcrumbLink>
         </BreadcrumbItem>
         {!isHome && (
           <>

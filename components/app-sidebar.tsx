@@ -31,15 +31,15 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Employee", href: "/dashboard/employee", icon: Users },
-  { label: "Attendance", href: "/dashboard/attendance", icon: CalendarCheck },
-  { label: "Face Recognition", href: "/dashboard/recognition", icon: ScanFace },
-  { label: "Live Monitoring", href: "/dashboard/live", icon: MonitorPlay },
-  { label: "CCTV", href: "/dashboard/cctv", icon: Camera },
-  { label: "Reports", href: "/dashboard/reports", icon: FileBarChart },
-  { label: "Work Schedule", href: "/dashboard/schedule", icon: CalendarRange },
-  { label: "Settings", href: "/dashboard/settings", icon: Settings },
+  { label: "Dashboard", href: "/superadmin", icon: LayoutDashboard },
+  { label: "Employee", href: "/superadmin/employee", icon: Users },
+  { label: "Attendance", href: "/superadmin/attendance", icon: CalendarCheck },
+  { label: "Face Recognition", href: "/superadmin/recognition", icon: ScanFace },
+  { label: "Live Monitoring", href: "/superadmin/live", icon: MonitorPlay },
+  { label: "CCTV", href: "/superadmin/cctv", icon: Camera },
+  { label: "Reports", href: "/superadmin/reports", icon: FileBarChart },
+  { label: "Work Schedule", href: "/superadmin/schedule", icon: CalendarRange },
+  { label: "Settings", href: "/superadmin/settings", icon: Settings },
 ] as const;
 
 export function AppSidebar() {
@@ -63,8 +63,8 @@ export function AppSidebar() {
             <SidebarMenu className="gap-3 py-1">
               {navItems.map((item) => {
                 const active =
-                  item.href === "/dashboard"
-                    ? pathname === "/dashboard"
+                  item.href === "/superadmin"
+                    ? pathname === "/superadmin"
                     : pathname.startsWith(item.href + "/") ||
                       pathname === item.href;
                 return (

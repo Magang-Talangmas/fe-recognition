@@ -131,7 +131,7 @@ export function NotificationBell() {
 
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          render={<Link href="/dashboard/notifications" />}
+          render={<Link href="/superadmin/notifications" />}
           className="cursor-pointer justify-center text-center"
         >
           Lihat semua notifikasi
