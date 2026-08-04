@@ -38,7 +38,6 @@ const navItems = [
   { label: "Live Monitoring", href: "/dashboard/live", icon: MonitorPlay },
   { label: "CCTV", href: "/dashboard/cctv", icon: Camera },
   { label: "Reports", href: "/dashboard/reports", icon: FileBarChart },
-  { label: "Notifications", href: "/dashboard/notifications", icon: Bell },
   { label: "Work Schedule", href: "/dashboard/schedule", icon: CalendarRange },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ] as const;
