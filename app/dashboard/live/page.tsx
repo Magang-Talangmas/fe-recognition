@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { pushNotification } from "@/components/notification-store";
+import { PageHeader } from "@/components/page-header";
 
 type Feed = {
   id: string;
@@ -91,21 +92,16 @@ export default function LiveMonitoringPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <MonitorPlay className="size-6" />
-            Live Monitoring
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Pantau feed CCTV & hasil pengenalan wajah secara langsung
-          </p>
-        </div>
+      <PageHeader
+        title="Live Monitoring"
+        description="Pantau feed CCTV & hasil pengenalan wajah secara langsung"
+        icon={<MonitorPlay className="size-6" />}
+      >
         <Button className="cursor-pointer" onClick={refresh} disabled={refreshing}>
           <RefreshCw className={refreshing ? "animate-spin" : ""} />
           Refresh
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="flex flex-col gap-4 xl:col-span-2">

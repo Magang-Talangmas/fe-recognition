@@ -20,6 +20,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import { PageHeader } from "@/components/page-header";
 import {
   markAllNotificationsRead,
   toggleNotificationRead,
@@ -72,16 +73,11 @@ export default function NotificationsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <Bell className="size-6" />
-            Notifications
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Notifikasi kehadiran, wajah tidak dikenal, CCTV, dan sistem
-          </p>
-        </div>
+      <PageHeader
+        title="Notifications"
+        description="Notifikasi kehadiran, wajah tidak dikenal, CCTV, dan sistem"
+        icon={<Bell className="size-6" />}
+      >
         <Button
           variant="outline"
           className="cursor-pointer"
@@ -91,7 +87,7 @@ export default function NotificationsPage() {
           <CheckCheck />
           Tandai semua dibaca
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3">
         <Select

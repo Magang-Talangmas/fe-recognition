@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/page-header";
 
 type Schedule = {
   id: string;
@@ -160,23 +161,18 @@ export default function SchedulePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <CalendarRange className="size-6" />
-            Work Schedule
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Atur jadwal kerja yang diikuti sistem pengenalan wajah
-          </p>
-        </div>
+      <PageHeader
+        title="Work Schedule"
+        description="Atur jadwal kerja yang diikuti sistem pengenalan wajah"
+        icon={<CalendarRange className="size-6" />}
+      >
         <Button className="cursor-pointer" onClick={openAdd}>
           <Plus />
           Tambah Jadwal
         </Button>
-      </div>
+      </PageHeader>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="overflow-hidden rounded-md border border-border/60 bg-card">
         <Table>
           <TableHeader>
             <TableRow>

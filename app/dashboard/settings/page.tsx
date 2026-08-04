@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
 
 type RecognitionSettings = {
   threshold: number;
@@ -67,16 +68,11 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <Settings className="size-6" />
-            Settings
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Konfigurasi sistem pengenalan wajah & aturan kehadiran
-          </p>
-        </div>
+      <PageHeader
+        title="Settings"
+        description="Konfigurasi sistem pengenalan wajah & aturan kehadiran"
+        icon={<Settings className="size-6" />}
+      >
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -91,7 +87,7 @@ export default function SettingsPage() {
             Simpan
           </Button>
         </div>
-      </div>
+      </PageHeader>
 
       <form className="flex flex-col gap-6">
         <Card className="rounded-lg">

@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Search,
-  Download,
-  CalendarCheck,
-  Pencil,
-} from "lucide-react";
+import { Search, Download, CalendarCheck, Pencil } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +30,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { pushNotification } from "@/components/notification-store";
+import { PageHeader } from "@/components/page-header";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type Status =
   | "Not Checked In"
@@ -67,18 +64,114 @@ const statusVariant: Record<
 };
 
 const initialAttendance: Attendance[] = [
-  { id: "AT-0001", employee: "Andi Pratama", date: "2026-08-03", checkIn: "08:02", checkOut: "17:05", status: "Working", workingHours: "8j 5m" },
-  { id: "AT-0002", employee: "Siti Rahma", date: "2026-08-03", checkIn: "08:05", checkOut: "17:10", status: "Working", workingHours: "8j 2m" },
-  { id: "AT-0003", employee: "Budi Santoso", date: "2026-08-03", checkIn: "08:11", checkOut: "", status: "Tracking Pause", workingHours: "7j 20m" },
-  { id: "AT-0004", employee: "Dewi Lestari", date: "2026-08-03", checkIn: "09:00", checkOut: "16:30", status: "Checked Out", workingHours: "7j 0m" },
-  { id: "AT-0005", employee: "Eko Nugroho", date: "2026-08-03", checkIn: "", checkOut: "", status: "Not Checked In", workingHours: "0j 0m" },
-  { id: "AT-0006", employee: "Rina Marlina", date: "2026-08-03", checkIn: "08:20", checkOut: "", status: "Break", workingHours: "3j 40m" },
-  { id: "AT-0007", employee: "Fajar Hidayat", date: "2026-08-03", checkIn: "08:01", checkOut: "17:02", status: "Checked Out", workingHours: "8j 10m" },
-  { id: "AT-0008", employee: "Rizky Ananda", date: "2026-08-03", checkIn: "08:07", checkOut: "", status: "Working", workingHours: "2j 15m" },
-  { id: "AT-0009", employee: "Putri Ayu", date: "2026-08-03", checkIn: "08:30", checkOut: "", status: "Working", workingHours: "1j 55m" },
-  { id: "AT-0010", employee: "Hendra Wijaya", date: "2026-08-03", checkIn: "10:05", checkOut: "", status: "Tracking Pause", workingHours: "0j 30m" },
-  { id: "AT-0011", employee: "Lia Kusuma", date: "2026-08-03", checkIn: "08:15", checkOut: "", status: "Working", workingHours: "3j 05m" },
-  { id: "AT-0012", employee: "Rahmat Fadil", date: "2026-08-03", checkIn: "", checkOut: "", status: "Not Checked In", workingHours: "—" },
+  {
+    id: "AT-0001",
+    employee: "Andi Pratama",
+    date: "2026-08-03",
+    checkIn: "08:02",
+    checkOut: "17:05",
+    status: "Working",
+    workingHours: "8j 5m",
+  },
+  {
+    id: "AT-0002",
+    employee: "Siti Rahma",
+    date: "2026-08-03",
+    checkIn: "08:05",
+    checkOut: "17:10",
+    status: "Working",
+    workingHours: "8j 2m",
+  },
+  {
+    id: "AT-0003",
+    employee: "Budi Santoso",
+    date: "2026-08-03",
+    checkIn: "08:11",
+    checkOut: "",
+    status: "Tracking Pause",
+    workingHours: "7j 20m",
+  },
+  {
+    id: "AT-0004",
+    employee: "Dewi Lestari",
+    date: "2026-08-03",
+    checkIn: "09:00",
+    checkOut: "16:30",
+    status: "Checked Out",
+    workingHours: "7j 0m",
+  },
+  {
+    id: "AT-0005",
+    employee: "Eko Nugroho",
+    date: "2026-08-03",
+    checkIn: "",
+    checkOut: "",
+    status: "Not Checked In",
+    workingHours: "0j 0m",
+  },
+  {
+    id: "AT-0006",
+    employee: "Rina Marlina",
+    date: "2026-08-03",
+    checkIn: "08:20",
+    checkOut: "",
+    status: "Break",
+    workingHours: "3j 40m",
+  },
+  {
+    id: "AT-0007",
+    employee: "Fajar Hidayat",
+    date: "2026-08-03",
+    checkIn: "08:01",
+    checkOut: "17:02",
+    status: "Checked Out",
+    workingHours: "8j 10m",
+  },
+  {
+    id: "AT-0008",
+    employee: "Rizky Ananda",
+    date: "2026-08-03",
+    checkIn: "08:07",
+    checkOut: "",
+    status: "Working",
+    workingHours: "2j 15m",
+  },
+  {
+    id: "AT-0009",
+    employee: "Putri Ayu",
+    date: "2026-08-03",
+    checkIn: "08:30",
+    checkOut: "",
+    status: "Working",
+    workingHours: "1j 55m",
+  },
+  {
+    id: "AT-0010",
+    employee: "Hendra Wijaya",
+    date: "2026-08-03",
+    checkIn: "10:05",
+    checkOut: "",
+    status: "Tracking Pause",
+    workingHours: "0j 30m",
+  },
+  {
+    id: "AT-0011",
+    employee: "Lia Kusuma",
+    date: "2026-08-03",
+    checkIn: "08:15",
+    checkOut: "",
+    status: "Working",
+    workingHours: "3j 05m",
+  },
+  {
+    id: "AT-0012",
+    employee: "Rahmat Fadil",
+    date: "2026-08-03",
+    checkIn: "",
+    checkOut: "",
+    status: "Not Checked In",
+    workingHours: "—",
+  },
 ];
 
 const statuses: Status[] = [
@@ -104,18 +197,22 @@ export default function AttendancePage() {
     const q = search.toLowerCase();
     return records.filter((r) => {
       const matchSearch =
-        !q || r.employee.toLowerCase().includes(q) || r.id.toLowerCase().includes(q);
+        !q ||
+        r.employee.toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q);
       const matchDate =
         (!startDate || r.date >= startDate) && (!endDate || r.date <= endDate);
-      const matchStatus =
-        statusFilter === "all" || r.status === statusFilter;
+      const matchStatus = statusFilter === "all" || r.status === statusFilter;
       return matchSearch && matchDate && matchStatus;
     });
   }, [records, search, startDate, endDate, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageToUse = Math.min(page, totalPages);
-  const paged = filtered.slice((pageToUse - 1) * PAGE_SIZE, pageToUse * PAGE_SIZE);
+  const paged = filtered.slice(
+    (pageToUse - 1) * PAGE_SIZE,
+    pageToUse * PAGE_SIZE,
+  );
   const start = filtered.length === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
   const end = Math.min(pageToUse * PAGE_SIZE, filtered.length);
 
@@ -144,7 +241,7 @@ export default function AttendancePage() {
     ]);
     const csv = [headers, ...rows]
       .map((row) =>
-        row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
+        row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","),
       )
       .join("\n");
     const blob = new Blob(["\uFEFF" + csv], {
@@ -162,7 +259,7 @@ export default function AttendancePage() {
     e.preventDefault();
     if (!editing) return;
     setRecords((prev) =>
-      prev.map((r) => (r.id === editing.id ? { ...editing } : r))
+      prev.map((r) => (r.id === editing.id ? { ...editing } : r)),
     );
     pushNotification({
       type: "checkin",
@@ -174,21 +271,16 @@ export default function AttendancePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <CalendarCheck className="size-6" />
-            Attendance
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Pantau kehadiran karyawan hari ini & histori
-          </p>
-        </div>
+      <PageHeader
+        title="Attendance"
+        description="Pantau kehadiran karyawan hari ini & histori"
+        icon={<CalendarCheck className="size-6" />}
+      >
         <Button className="cursor-pointer" onClick={handleExport}>
           <Download />
           Ekspor Laporan
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-60 max-w-md flex-1">
@@ -236,7 +328,7 @@ export default function AttendancePage() {
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="overflow-hidden rounded-md border border-border/60 bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -263,7 +355,9 @@ export default function AttendancePage() {
             {paged.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium">{r.employee}</TableCell>
-                <TableCell className="text-muted-foreground">{r.date}</TableCell>
+                <TableCell className="text-muted-foreground">
+                  {r.date}
+                </TableCell>
                 <TableCell>{r.checkIn || "—"}</TableCell>
                 <TableCell>{r.checkOut || "—"}</TableCell>
                 <TableCell className="text-muted-foreground">
@@ -289,46 +383,15 @@ export default function AttendancePage() {
           </TableBody>
         </Table>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-          <span className="text-xs text-muted-foreground">
-            Menampilkan {start}-{end} dari {filtered.length} catatan
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer"
-              disabled={pageToUse <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Sebelumnya
-            </Button>
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <Button
-                key={i}
-                variant="outline"
-                size="sm"
-                className={`cursor-pointer ${
-                  pageToUse === i + 1
-                    ? "bg-primary text-primary-foreground"
-                    : ""
-                }`}
-                onClick={() => setPage(i + 1)}
-              >
-                {i + 1}
-              </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer"
-              disabled={pageToUse >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Berikutnya
-            </Button>
-          </div>
-        </div>
+        <DataTablePagination
+          page={pageToUse}
+          pageCount={totalPages}
+          total={filtered.length}
+          start={start}
+          end={end}
+          itemLabel="catatan"
+          onPageChange={setPage}
+        />
       </div>
 
       <Dialog open={!!editing} onOpenChange={() => setEditing(null)}>
@@ -349,7 +412,7 @@ export default function AttendancePage() {
                   value={editing?.checkIn ?? ""}
                   onChange={(e) =>
                     setEditing((prev) =>
-                      prev ? { ...prev, checkIn: e.target.value } : prev
+                      prev ? { ...prev, checkIn: e.target.value } : prev,
                     )
                   }
                 />
@@ -362,7 +425,7 @@ export default function AttendancePage() {
                   value={editing?.checkOut ?? ""}
                   onChange={(e) =>
                     setEditing((prev) =>
-                      prev ? { ...prev, checkOut: e.target.value } : prev
+                      prev ? { ...prev, checkOut: e.target.value } : prev,
                     )
                   }
                 />
@@ -374,7 +437,9 @@ export default function AttendancePage() {
                 value={editing?.status ?? "Working"}
                 onValueChange={(v) =>
                   setEditing((prev) =>
-                    prev ? { ...prev, status: (v ?? "Working") as Status } : prev
+                    prev
+                      ? { ...prev, status: (v ?? "Working") as Status }
+                      : prev,
                   )
                 }
               >

@@ -34,6 +34,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/page-header";
+import { DataTablePagination } from "@/components/data-table-pagination";
 
 type Cctv = {
   id: string;
@@ -145,21 +147,16 @@ export default function CctvPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <Camera className="size-6" />
-            CCTV
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Kelola perangkat kamera pengenalan wajah
-          </p>
-        </div>
+      <PageHeader
+        title="CCTV"
+        description="Kelola perangkat kamera pengenalan wajah"
+        icon={<Camera className="size-6" />}
+      >
         <Button className="cursor-pointer" onClick={openAdd}>
           <Plus />
           Tambah CCTV
         </Button>
-      </div>
+      </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-60 max-w-md flex-1">
@@ -186,7 +183,7 @@ export default function CctvPage() {
         </span>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="overflow-hidden rounded-md border border-border/60 bg-card">
         <Table>
           <TableHeader>
             <TableRow>
@@ -279,44 +276,15 @@ export default function CctvPage() {
           </TableBody>
         </Table>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t px-4 py-3 text-sm">
-          <span className="text-xs text-muted-foreground">
-            Menampilkan {start}-{end} dari {filtered.length} kamera
-          </span>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer"
-              disabled={pageToUse <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Sebelumnya
-            </Button>
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <Button
-                key={i}
-                variant="outline"
-                size="sm"
-                className={`cursor-pointer ${
-                  pageToUse === i + 1 ? "bg-primary text-primary-foreground" : ""
-                }`}
-                onClick={() => setPage(i + 1)}
-              >
-                {i + 1}
-              </Button>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              className="cursor-pointer"
-              disabled={pageToUse >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Berikutnya
-            </Button>
-          </div>
-        </div>
+        <DataTablePagination
+          page={pageToUse}
+          pageCount={totalPages}
+          total={filtered.length}
+          start={start}
+          end={end}
+          itemLabel="kamera"
+          onPageChange={setPage}
+        />
       </div>
 
       <Dialog open={formOpen} onOpenChange={setFormOpen}>

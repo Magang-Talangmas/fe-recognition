@@ -34,6 +34,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PageHeader } from "@/components/page-header";
 
 type ReportRow = {
   code: string;
@@ -125,23 +126,18 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight">
-            <FileBarChart className="size-6" />
-            Reports
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Hasilkan laporan kehadiran & pengenalan wajah
-          </p>
-        </div>
+      <PageHeader
+        title="Reports"
+        description="Hasilkan laporan kehadiran & pengenalan wajah"
+        icon={<FileBarChart className="size-6" />}
+      >
         <Button className="cursor-pointer" onClick={handleExport}>
           <Download />
           Ekspor CSV
         </Button>
-      </div>
+      </PageHeader>
 
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border/60 bg-card p-4">
+      <div className="flex flex-wrap items-end gap-4 rounded-md border border-border/60 bg-card p-4">
         <div className="flex flex-col gap-2">
           <Label>Jenis Laporan</Label>
           <Select value={reportType} onValueChange={(v) => setReportType(v ?? "monthly")}>
@@ -188,7 +184,7 @@ export default function ReportsPage() {
         <StatCard icon={<Users className="size-5" />} tone="text-purple-600 bg-purple-100" label="Tidak Dikenal" value={totals.unknown} />
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      <div className="overflow-hidden rounded-md border border-border/60 bg-card">
         <Table>
           <TableHeader>
             <TableRow>
