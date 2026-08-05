@@ -6,7 +6,6 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Clock3,
   Coffee,
   LogIn,
   LogOut,
@@ -35,6 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
+import { toast } from "sonner";
 
 type Schedule = {
   id: string;
@@ -139,9 +139,11 @@ export default function SchedulePage() {
       setSchedules((prev) =>
         prev.map((s) => (s.id === editing.id ? { ...s, ...form } : s))
       );
+      toast.success(`Jadwal ${editing.name} berhasil diperbarui`);
     } else {
       const nextId = `SCH-${String(schedules.length + 1).padStart(2, "0")}`;
       setSchedules((prev) => [{ id: nextId, ...form }, ...prev]);
+      toast.success(`Jadwal ${form.name} berhasil ditambahkan`);
     }
     setFormOpen(false);
   }
@@ -149,6 +151,7 @@ export default function SchedulePage() {
   function confirmDelete() {
     if (!deleteTarget) return;
     setSchedules((prev) => prev.filter((s) => s.id !== deleteTarget.id));
+    toast.success(`Jadwal ${deleteTarget.name} berhasil dihapus`);
     setDeleteTarget(null);
   }
 

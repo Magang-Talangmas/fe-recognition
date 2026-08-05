@@ -11,6 +11,7 @@ import {
   ToggleLeft,
   ToggleRight,
   XIcon,
+  CircleAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 
 type Employee = {
   id: string;
@@ -105,6 +107,7 @@ export default function EmployeePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
@@ -168,11 +171,13 @@ export default function EmployeePage() {
   function openAdd() {
     setEditing(null);
     setForm(emptyForm);
+    setFormError("");
     setFormOpen(true);
   }
 
   function openEdit(emp: Employee) {
     setEditing(emp);
+    setFormError("");
     setForm({
       name: emp.name,
       email: emp.email ?? "",
@@ -189,10 +194,11 @@ export default function EmployeePage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (form.password && form.password.length < 6) {
-      alert("Password minimal 6 karakter");
+      setFormError("Password minimal 6 karakter");
       return;
     }
     setSaving(true);
+    setFormError("");
     try {
       const body = new FormData();
       body.append("name", form.name);
@@ -211,11 +217,18 @@ export default function EmployeePage() {
       } else {
         await apiFetch("/v1/employees", { method: "POST", body });
       }
+      toast.success(
+        editing
+          ? `Data ${form.name} berhasil diperbarui`
+          : `Karyawan ${form.name} berhasil ditambahkan`,
+      );
       setFormOpen(false);
       refresh();
     } catch (err) {
       console.error("Gagal menyimpan karyawan:", err);
-      alert(err instanceof Error ? err.message : "Gagal menyimpan karyawan");
+      setFormError(
+        err instanceof Error ? err.message : "Gagal menyimpan karyawan",
+      );
     } finally {
       setSaving(false);
     }
@@ -230,9 +243,12 @@ export default function EmployeePage() {
       setEmployees((prev) =>
         prev.map((e) => (e.id === emp.id ? { ...e, status: res.status } : e)),
       );
+      toast.success(`Status ${emp.name} diubah menjadi ${res.status}`);
     } catch (err) {
       console.error("Gagal mengubah status:", err);
-      alert(err instanceof Error ? err.message : "Gagal mengubah status");
+      toast.error(
+        err instanceof Error ? err.message : "Gagal mengubah status",
+      );
     }
   }
 
@@ -247,9 +263,14 @@ export default function EmployeePage() {
           e.id === emp.id ? { ...e, faceRegistered: res.faceRegistered } : e,
         ),
       );
+      toast.success(
+        `Wajah ${emp.name} ${res.faceRegistered ? "terdaftar" : "dihapus dari pendaftaran"}`,
+      );
     } catch (err) {
       console.error("Gagal mengubah status wajah:", err);
-      alert(err instanceof Error ? err.message : "Gagal mengubah status wajah");
+      toast.error(
+        err instanceof Error ? err.message : "Gagal mengubah status wajah",
+      );
     }
   }
 
@@ -257,11 +278,14 @@ export default function EmployeePage() {
     if (!deleteTarget) return;
     try {
       await apiFetch(`/v1/employees/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success(`Karyawan ${deleteTarget.name} berhasil dihapus`);
       setDeleteTarget(null);
       refresh();
     } catch (err) {
       console.error("Gagal menghapus karyawan:", err);
-      alert(err instanceof Error ? err.message : "Gagal menghapus karyawan");
+      toast.error(
+        err instanceof Error ? err.message : "Gagal menghapus karyawan",
+      );
     }
   }
 
@@ -275,7 +299,7 @@ export default function EmployeePage() {
     if (room <= 0) return;
     const tooBig = files.find((f) => f.size > MAX_PHOTO_SIZE);
     if (tooBig) {
-      alert(
+      toast.error(
         `Foto "${tooBig.name}" melebihi batas maksimal ${
           MAX_PHOTO_SIZE / (1024 * 1024)
         }MB per file`,
@@ -511,6 +535,12 @@ export default function EmployeePage() {
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {formError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <CircleAlert className="size-4 shrink-0" />
+                {formError}
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
                 <Label htmlFor="f-name">Nama Lengkap</Label>

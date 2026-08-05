@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { toast } from "sonner";
 
 type RecognitionSettings = {
   threshold: number;
@@ -45,25 +46,22 @@ const defaults: RecognitionSettings = {
 
 export default function SettingsPage() {
   const [form, setForm] = useState<RecognitionSettings>(defaults);
-  const [saved, setSaved] = useState(false);
 
   function updateField<K extends keyof RecognitionSettings>(
     key: K,
     value: string | boolean
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
-    setSaved(false);
   }
 
   function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    toast.success("Pengaturan berhasil disimpan");
   }
 
   function reset() {
     setForm(defaults);
-    setSaved(false);
+    toast.success("Pengaturan dikembalikan ke nilai default");
   }
 
   return (
@@ -230,11 +228,6 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             Notifikasi akan dikirim melalui panel notifikasi Super Admin.
-            {saved && (
-              <span className="ml-2 font-medium text-green-600">
-                Pengaturan tersimpan.
-              </span>
-            )}
           </CardContent>
         </Card>
       </form>

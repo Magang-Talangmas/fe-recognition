@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Camera,
   Plus,
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { toast } from "sonner";
 
 type Cctv = {
   id: string;
@@ -96,10 +97,6 @@ export default function CctvPage() {
   const start = filtered.length === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
   const end = Math.min(pageToUse * PAGE_SIZE, filtered.length);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search, statusFilter]);
-
   function openAdd() {
     setEditing(null);
     setForm(emptyForm);
@@ -118,9 +115,11 @@ export default function CctvPage() {
       setCctvs((prev) =>
         prev.map((c) => (c.id === editing.id ? { ...c, ...form } : c))
       );
+      toast.success(`CCTV ${editing.name} berhasil diperbarui`);
     } else {
       const nextId = `CAM-${String(cctvs.length + 1).padStart(2, "0")}`;
       setCctvs((prev) => [{ id: nextId, ...form }, ...prev]);
+      toast.success(`CCTV ${form.name} berhasil ditambahkan`);
     }
     setFormOpen(false);
   }
@@ -131,11 +130,13 @@ export default function CctvPage() {
         x.id === c.id ? { ...x, enabled: !x.enabled } : x
       )
     );
+    toast.success(`${c.name} ${c.enabled ? "dinonaktifkan" : "diaktifkan"}`);
   }
 
   function confirmDelete() {
     if (!deleteTarget) return;
     setCctvs((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+    toast.success(`CCTV ${deleteTarget.name} berhasil dihapus`);
     setDeleteTarget(null);
   }
 
@@ -164,14 +165,20 @@ export default function CctvPage() {
           <Input
             type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
             placeholder="Cari nama, lokasi, atau ID kamera..."
             className="h-10 pl-10"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(e) => {
+            setStatusFilter(e.target.value);
+            setPage(1);
+          }}
           className="h-10 cursor-pointer rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-ring"
         >
           <option value="all">Semua Status</option>

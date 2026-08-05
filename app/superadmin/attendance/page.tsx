@@ -23,10 +23,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { pushNotification } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 import * as XLSX from "xlsx-js-style";
 
 type DailyAttendanceItem = {
@@ -174,11 +174,12 @@ export default function AttendancePage() {
         checkOut: editing.checkOut || null,
       },
     }));
-    pushNotification({
-      type: "checkin",
-      title: "Catatan Kehadiran Diperbaiki",
-      description: `${editing.employeeName} (${editing.date}) · check-in ${editing.checkIn || "-"} · check-out ${editing.checkOut || "-"}`,
-    });
+    toast.success(
+      `Catatan kehadiran ${editing.employeeName} (${editing.date}) diperbaiki`,
+      {
+        description: `Check-in ${editing.checkIn || "-"} · Check-out ${editing.checkOut || "-"}`,
+      },
+    );
     setEditing(null);
   }
 
