@@ -34,7 +34,6 @@ const navItems = [
   { label: "Dashboard", href: "/superadmin", icon: LayoutDashboard },
   { label: "Employee", href: "/superadmin/employee", icon: Users },
   { label: "Attendance", href: "/superadmin/attendance", icon: CalendarCheck },
-  { label: "Face Recognition", href: "/superadmin/recognition", icon: ScanFace },
   { label: "Live Monitoring", href: "/superadmin/live", icon: MonitorPlay },
   { label: "CCTV", href: "/superadmin/cctv", icon: Camera },
   { label: "Reports", href: "/superadmin/reports", icon: FileBarChart },
