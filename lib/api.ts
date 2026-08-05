@@ -17,10 +17,21 @@ export function getUser(): { id: string; email: string; name: string; role: stri
   }
 }
 
-export async function apiFetch<T>(
-  path: string,
-  options: RequestInit = {}
-): Promise<T> {
+export type ApiPagination = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+export type ApiResponse<T> = {
+  success: boolean;
+  message?: string;
+  data?: T;
+  pagination?: ApiPagination;
+};
+
+async function apiRequest<T>(path: string, options: RequestInit = {}) {
   const token = getToken();
   const isFormData =
     typeof FormData !== "undefined" && options.body instanceof FormData;
@@ -41,13 +52,26 @@ export async function apiFetch<T>(
     }
   }
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) {
+    return { success: true } as ApiResponse<T>;
+  }
 
-  const json = (await res.json()) as {
-    success: boolean;
-    message?: string;
-    data?: T;
-  };
+  const json = (await res.json()) as ApiResponse<T>;
   if (!json.success) throw new Error(json.message ?? "Terjadi kesalahan");
+  return json;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const json = await apiRequest<T>(path, options);
   return json.data as T;
+}
+
+export async function apiFetchFull<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<ApiResponse<T>> {
+  return apiRequest<T>(path, options);
 }

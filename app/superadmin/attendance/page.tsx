@@ -6,7 +6,6 @@ import { Search, Download, CalendarCheck, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -15,12 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -32,241 +25,258 @@ import {
 import { pushNotification } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { apiFetchFull } from "@/lib/api";
+import * as XLSX from "xlsx-js-style";
 
-type Status =
-  | "Not Checked In"
-  | "Checked In"
-  | "Working"
-  | "Break"
-  | "Tracking Pause"
-  | "Checked Out";
-
-type Attendance = {
+type AttendanceItem = {
   id: string;
-  employee: string;
+  externalEventId: string | null;
+  employeeId: string | null;
+  cameraId: string;
+  eventType: string;
+  similarity: number | null;
+  timestamp: string;
+  confirmationStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  employee: {
+    id: string;
+    employeeId: string;
+    name: string;
+    department: string | null;
+    position: string | null;
+  } | null;
+};
+
+type DailyAttendance = {
+  id: string;
+  employeeId: string;
+  employeeName: string;
   date: string;
-  checkIn: string;
-  checkOut: string;
-  status: Status;
+  checkIn: string | null;
+  checkOut: string | null;
   workingHours: string;
 };
 
-const statusVariant: Record<
-  Status,
-  "secondary" | "outline" | "destructive" | "default"
-> = {
-  "Not Checked In": "destructive",
-  "Checked In": "outline",
-  Working: "secondary",
-  Break: "outline",
-  "Tracking Pause": "outline",
-  "Checked Out": "secondary",
+type DailyBuilder = Omit<DailyAttendance, "workingHours"> & {
+  checkInTs: number;
+  checkOutTs: number;
 };
 
-const initialAttendance: Attendance[] = [
-  {
-    id: "AT-0001",
-    employee: "Andi Pratama",
-    date: "2026-08-03",
-    checkIn: "08:02",
-    checkOut: "17:05",
-    status: "Working",
-    workingHours: "8j 5m",
-  },
-  {
-    id: "AT-0002",
-    employee: "Siti Rahma",
-    date: "2026-08-03",
-    checkIn: "08:05",
-    checkOut: "17:10",
-    status: "Working",
-    workingHours: "8j 2m",
-  },
-  {
-    id: "AT-0003",
-    employee: "Budi Santoso",
-    date: "2026-08-03",
-    checkIn: "08:11",
-    checkOut: "",
-    status: "Tracking Pause",
-    workingHours: "7j 20m",
-  },
-  {
-    id: "AT-0004",
-    employee: "Dewi Lestari",
-    date: "2026-08-03",
-    checkIn: "09:00",
-    checkOut: "16:30",
-    status: "Checked Out",
-    workingHours: "7j 0m",
-  },
-  {
-    id: "AT-0005",
-    employee: "Eko Nugroho",
-    date: "2026-08-03",
-    checkIn: "",
-    checkOut: "",
-    status: "Not Checked In",
-    workingHours: "0j 0m",
-  },
-  {
-    id: "AT-0006",
-    employee: "Rina Marlina",
-    date: "2026-08-03",
-    checkIn: "08:20",
-    checkOut: "",
-    status: "Break",
-    workingHours: "3j 40m",
-  },
-  {
-    id: "AT-0007",
-    employee: "Fajar Hidayat",
-    date: "2026-08-03",
-    checkIn: "08:01",
-    checkOut: "17:02",
-    status: "Checked Out",
-    workingHours: "8j 10m",
-  },
-  {
-    id: "AT-0008",
-    employee: "Rizky Ananda",
-    date: "2026-08-03",
-    checkIn: "08:07",
-    checkOut: "",
-    status: "Working",
-    workingHours: "2j 15m",
-  },
-  {
-    id: "AT-0009",
-    employee: "Putri Ayu",
-    date: "2026-08-03",
-    checkIn: "08:30",
-    checkOut: "",
-    status: "Working",
-    workingHours: "1j 55m",
-  },
-  {
-    id: "AT-0010",
-    employee: "Hendra Wijaya",
-    date: "2026-08-03",
-    checkIn: "10:05",
-    checkOut: "",
-    status: "Tracking Pause",
-    workingHours: "0j 30m",
-  },
-  {
-    id: "AT-0011",
-    employee: "Lia Kusuma",
-    date: "2026-08-03",
-    checkIn: "08:15",
-    checkOut: "",
-    status: "Working",
-    workingHours: "3j 05m",
-  },
-  {
-    id: "AT-0012",
-    employee: "Rahmat Fadil",
-    date: "2026-08-03",
-    checkIn: "",
-    checkOut: "",
-    status: "Not Checked In",
-    workingHours: "—",
-  },
-];
+type Override = { checkIn: string | null; checkOut: string | null };
 
-const statuses: Status[] = [
-  "Not Checked In",
-  "Checked In",
-  "Working",
-  "Break",
-  "Tracking Pause",
-  "Checked Out",
-];
+type EditForm = {
+  key: string;
+  employeeName: string;
+  date: string;
+  checkIn: string;
+  checkOut: string;
+};
+
+function calcWorkingHours(
+  checkIn: string | null,
+  checkOut: string | null,
+): string {
+  if (!checkIn || !checkOut) return "—";
+  const [h1, m1] = checkIn.split(":").map(Number);
+  const [h2, m2] = checkOut.split(":").map(Number);
+  let mins = h2 * 60 + m2 - (h1 * 60 + m1);
+  if (mins < 0) mins += 24 * 60;
+  return `${Math.floor(mins / 60)}j ${mins % 60}m`;
+}
+
+function toDaily(records: AttendanceItem[]): DailyAttendance[] {
+  const map = new Map<string, DailyBuilder>();
+  for (const r of records) {
+    const ts = new Date(r.timestamp).getTime();
+    if (Number.isNaN(ts)) continue;
+    const d = new Date(r.timestamp);
+    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    const key = `${r.employeeId ?? "unknown"}-${date}`;
+    const cur = map.get(key) ?? {
+      id: r.id,
+      employeeId: r.employeeId ?? "",
+      employeeName: r.employee?.name ?? "—",
+      date,
+      checkIn: null,
+      checkOut: null,
+      checkInTs: Number.POSITIVE_INFINITY,
+      checkOutTs: Number.NEGATIVE_INFINITY,
+    };
+    if (r.eventType === "CHECK_IN" && ts < cur.checkInTs) {
+      cur.checkIn = time;
+      cur.checkInTs = ts;
+    }
+    if (r.eventType === "CHECK_OUT" && ts > cur.checkOutTs) {
+      cur.checkOut = time;
+      cur.checkOutTs = ts;
+    }
+    map.set(key, cur);
+  }
+
+  return Array.from(map.values()).map((r) => ({
+    id: r.id,
+    employeeId: r.employeeId,
+    employeeName: r.employeeName,
+    date: r.date,
+    checkIn: r.checkIn,
+    checkOut: r.checkOut,
+    workingHours: calcWorkingHours(r.checkIn, r.checkOut),
+  }));
+}
 
 export default function AttendancePage() {
-  const [records, setRecords] = useState<Attendance[]>(initialAttendance);
+  const [events, setEvents] = useState<AttendanceItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<Attendance | null>(null);
+  const [editing, setEditing] = useState<EditForm | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const PAGE_SIZE = 10;
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return records.filter((r) => {
-      const matchSearch =
-        !q ||
-        r.employee.toLowerCase().includes(q) ||
-        r.id.toLowerCase().includes(q);
-      const matchDate =
-        (!startDate || r.date >= startDate) && (!endDate || r.date <= endDate);
-      const matchStatus = statusFilter === "all" || r.status === statusFilter;
-      return matchSearch && matchDate && matchStatus;
-    });
-  }, [records, search, startDate, endDate, statusFilter]);
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        if (debouncedSearch) params.set("employee_id", debouncedSearch);
+        if (startDate) params.set("start_date", `${startDate}T00:00:00.000Z`);
+        if (endDate) params.set("end_date", `${endDate}T23:59:59.999Z`);
+        params.set("limit", "100");
+        const res = await apiFetchFull<AttendanceItem[]>(
+          `/v1/attendance?${params.toString()}`,
+        );
+        if (!active) return;
+        setEvents(res.data ?? []);
+      } catch (err) {
+        console.error("Gagal mengambil data absensi:", err);
+        if (active) setEvents([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [debouncedSearch, startDate, endDate]);
+
+  const summaries = useMemo(() => {
+    const list = toDaily(events);
+    list.sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) || a.employeeName.localeCompare(b.employeeName),
+    );
+    return list;
+  }, [events]);
+
+  const totalPages = Math.max(1, Math.ceil(summaries.length / PAGE_SIZE));
   const pageToUse = Math.min(page, totalPages);
-  const paged = filtered.slice(
+  const paged = summaries.slice(
     (pageToUse - 1) * PAGE_SIZE,
     pageToUse * PAGE_SIZE,
   );
-  const start = filtered.length === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
-  const end = Math.min(pageToUse * PAGE_SIZE, filtered.length);
+  const start = summaries.length === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
+  const end = Math.min(pageToUse * PAGE_SIZE, summaries.length);
 
-  useEffect(() => {
-    setPage(1);
-  }, [search, startDate, endDate, statusFilter]);
+  function keyOf(r: DailyAttendance): string {
+    return `${r.employeeId}-${r.date}`;
+  }
+
+  function effective(r: DailyAttendance) {
+    const ov = overrides[keyOf(r)];
+    const checkIn = ov?.checkIn ?? r.checkIn;
+    const checkOut = ov?.checkOut ?? r.checkOut;
+    return {
+      checkIn,
+      checkOut,
+      workingHours: ov ? calcWorkingHours(checkIn, checkOut) : r.workingHours,
+    };
+  }
+
+  function openEdit(r: DailyAttendance) {
+    const ov = overrides[keyOf(r)];
+    setEditing({
+      key: keyOf(r),
+      employeeName: r.employeeName,
+      date: r.date,
+      checkIn: ov?.checkIn ?? r.checkIn ?? "",
+      checkOut: ov?.checkOut ?? r.checkOut ?? "",
+    });
+  }
+
+  function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editing) return;
+    setOverrides((prev) => ({
+      ...prev,
+      [editing.key]: {
+        checkIn: editing.checkIn || null,
+        checkOut: editing.checkOut || null,
+      },
+    }));
+    pushNotification({
+      type: "checkin",
+      title: "Catatan Kehadiran Diperbaiki",
+      description: `${editing.employeeName} (${editing.date}) · check-in ${editing.checkIn || "-"} · check-out ${editing.checkOut || "-"}`,
+    });
+    setEditing(null);
+  }
 
   function handleExport() {
     const headers = [
-      "ID",
       "Karyawan",
+      "Employee ID",
       "Tanggal",
       "Check In",
       "Check Out",
       "Jam Kerja",
-      "Status",
     ];
-    const rows = filtered.map((r) => [
-      r.id,
-      r.employee,
-      r.date,
-      r.checkIn || "-",
-      r.checkOut || "-",
-      r.workingHours,
-      r.status,
-    ]);
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","),
-      )
-      .join("\n");
-    const blob = new Blob(["\uFEFF" + csv], {
-      type: "text/csv;charset=utf-8;",
+    const rows = summaries.map((r) => {
+      const { checkIn, checkOut, workingHours } = effective(r);
+      return [
+        r.employeeName,
+        r.employeeId,
+        r.date,
+        checkIn ?? "-",
+        checkOut ?? "-",
+        workingHours,
+      ];
     });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `laporan-attendance-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
 
-  function saveCorrection(e: React.FormEvent) {
-    e.preventDefault();
-    if (!editing) return;
-    setRecords((prev) =>
-      prev.map((r) => (r.id === editing.id ? { ...editing } : r)),
-    );
-    pushNotification({
-      type: "checkin",
-      title: "Catatan Kehadiran Diperbaiki",
-      description: `${editing.employee} (${editing.id}) · check-in ${editing.checkIn || "-"} · check-out ${editing.checkOut || "-"}`,
-    });
-    setEditing(null);
+    const aoa = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 16 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+    ];
+
+    const headerCell = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "2563EB" } },
+      alignment: { horizontal: "center" as const, vertical: "center" as const },
+    };
+    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      ws[addr] = { ...ws[addr], ...headerCell };
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
+    XLSX.writeFile(wb, `laporan-attendance-${new Date().toISOString().slice(0, 10)}.xlsx`);
   }
 
   return (
@@ -288,8 +298,11 @@ export default function AttendancePage() {
           <Input
             type="search"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama atau ID karyawan..."
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Cari employee ID..."
             className="h-10 bg-white pl-10"
           />
         </div>
@@ -297,35 +310,23 @@ export default function AttendancePage() {
           <Input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-fit bg-white"
           />
           <span className="text-sm text-muted-foreground">s.d.</span>
           <Input
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-fit bg-white"
           />
         </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v ?? "all")}
-        >
-          <SelectTrigger className="h-10">
-            <span className="flex flex-1 items-center text-left">
-              {statusFilter === "all" ? "Semua Status" : statusFilter}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Status</SelectItem>
-            {statuses.map((s) => (
-              <SelectItem key={s} value={s}>
-                {s}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <div className="overflow-hidden rounded-md border border-border/60 bg-card">
@@ -336,57 +337,74 @@ export default function AttendancePage() {
               <TableHead>Tanggal</TableHead>
               <TableHead>Check In</TableHead>
               <TableHead>Check Out</TableHead>
-              <TableHead>Jam Kerja</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Jam Kerja</TableHead>
               <TableHead className="text-right">Aksi</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paged.length === 0 && (
+            {loading && (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={6}
+                  className="py-12 text-center text-muted-foreground"
+                >
+                  Memuat data kehadiran...
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && paged.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
                   className="py-12 text-center text-muted-foreground"
                 >
                   Tidak ada data kehadiran.
                 </TableCell>
               </TableRow>
             )}
-            {paged.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-medium">{r.employee}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {r.date}
-                </TableCell>
-                <TableCell>{r.checkIn || "—"}</TableCell>
-                <TableCell>{r.checkOut || "—"}</TableCell>
-                <TableCell className="text-muted-foreground">
-                  {r.workingHours}
-                </TableCell>
-                <TableCell>
-                  <Badge variant={statusVariant[r.status]}>{r.status}</Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex justify-end">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Perbaiki catatan"
-                      onClick={() => setEditing(r)}
-                    >
-                      <Pencil />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {!loading &&
+              paged.map((r) => {
+                const { checkIn, checkOut, workingHours } = effective(r);
+                return (
+                  <TableRow key={`${r.id}-${r.date}`}>
+                    <TableCell>
+                      <div className="flex flex-col leading-tight">
+                        <span className="font-medium">{r.employeeName}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {r.employeeId}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {r.date}
+                    </TableCell>
+                    <TableCell>{checkIn ?? "—"}</TableCell>
+                    <TableCell>{checkOut ?? "—"}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {workingHours}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-end">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Perbaiki catatan"
+                          onClick={() => openEdit(r)}
+                        >
+                          <Pencil />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
           </TableBody>
         </Table>
 
         <DataTablePagination
           page={pageToUse}
           pageCount={totalPages}
-          total={filtered.length}
+          total={summaries.length}
           start={start}
           end={end}
           itemLabel="catatan"
@@ -399,15 +417,15 @@ export default function AttendancePage() {
           <DialogHeader>
             <DialogTitle>Perbaiki Catatan Kehadiran</DialogTitle>
             <DialogDescription>
-              Perbaiki jam kehadiran untuk {editing?.employee}.
+              Perbaiki jam kehadiran untuk {editing?.employeeName} ({editing?.date}).
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={saveCorrection} className="flex flex-col gap-4">
+          <form onSubmit={saveEdit} className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="c-in">Check In</Label>
+                <Label htmlFor="e-in">Check In</Label>
                 <Input
-                  id="c-in"
+                  id="e-in"
                   type="time"
                   value={editing?.checkIn ?? ""}
                   onChange={(e) =>
@@ -418,9 +436,9 @@ export default function AttendancePage() {
                 />
               </div>
               <div className="flex flex-col gap-2">
-                <Label htmlFor="c-out">Check Out</Label>
+                <Label htmlFor="e-out">Check Out</Label>
                 <Input
-                  id="c-out"
+                  id="e-out"
                   type="time"
                   value={editing?.checkOut ?? ""}
                   onChange={(e) =>
@@ -430,32 +448,6 @@ export default function AttendancePage() {
                   }
                 />
               </div>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>Status</Label>
-              <Select
-                value={editing?.status ?? "Working"}
-                onValueChange={(v) =>
-                  setEditing((prev) =>
-                    prev
-                      ? { ...prev, status: (v ?? "Working") as Status }
-                      : prev,
-                  )
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <span className="flex flex-1 items-center text-left">
-                    {editing?.status}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
             <DialogFooter>
               <Button

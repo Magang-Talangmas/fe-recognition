@@ -12,6 +12,28 @@ type Props = {
   onPageChange: (page: number) => void;
 };
 
+function getVisiblePages(
+  page: number,
+  pageCount: number,
+): (number | "…")[] {
+  if (pageCount <= 7) {
+    return Array.from({ length: pageCount }, (_, i) => i + 1);
+  }
+  const pages = Array.from(
+    new Set([1, pageCount, page - 1, page, page + 1]),
+  )
+    .filter((p) => p >= 1 && p <= pageCount)
+    .sort((a, b) => a - b);
+  const result: (number | "…")[] = [];
+  let prev = 0;
+  for (const p of pages) {
+    if (p - prev > 1) result.push("…");
+    result.push(p);
+    prev = p;
+  }
+  return result;
+}
+
 export function DataTablePagination({
   page,
   pageCount,
@@ -36,19 +58,28 @@ export function DataTablePagination({
         >
           Sebelumnya
         </Button>
-        {Array.from({ length: pageCount }).map((_, i) => (
-          <Button
-            key={i}
-            variant="outline"
-            size="sm"
-            className={`cursor-pointer ${
-              page === i + 1 ? "bg-primary text-primary-foreground" : ""
-            }`}
-            onClick={() => onPageChange(i + 1)}
-          >
-            {i + 1}
-          </Button>
-        ))}
+        {getVisiblePages(page, pageCount).map((p, idx) =>
+          p === "…" ? (
+            <span
+              key={`ellipsis-${idx}`}
+              className="px-1 text-muted-foreground"
+            >
+              …
+            </span>
+          ) : (
+            <Button
+              key={p}
+              variant="outline"
+              size="sm"
+              className={`cursor-pointer ${
+                page === p ? "bg-primary text-primary-foreground" : ""
+              }`}
+              onClick={() => onPageChange(p)}
+            >
+              {p}
+            </Button>
+          ),
+        )}
         <Button
           variant="outline"
           size="sm"
