@@ -6,6 +6,7 @@ import { Search, Download, CalendarCheck, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -25,42 +26,30 @@ import {
 import { pushNotification } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
-import { apiFetchFull } from "@/lib/api";
+import { apiFetch } from "@/lib/api";
 import * as XLSX from "xlsx-js-style";
 
-type AttendanceItem = {
-  id: string;
-  externalEventId: string | null;
-  employeeId: string | null;
-  cameraId: string;
-  eventType: string;
-  similarity: number | null;
-  timestamp: string;
-  confirmationStatus: string;
-  createdAt: string;
-  updatedAt: string;
-  employee: {
-    id: string;
-    employeeId: string;
-    name: string;
-    department: string | null;
-    position: string | null;
-  } | null;
-};
-
-type DailyAttendance = {
+type DailyAttendanceItem = {
   id: string;
   employeeId: string;
-  employeeName: string;
-  date: string;
-  checkIn: string | null;
-  checkOut: string | null;
-  workingHours: string;
+  name: string;
+  department: string | null;
+  position: string | null;
+  employeeStatus: "Active" | "Inactive";
+  present: boolean;
+  attendanceCount: number;
+  confirmationStatus: string | null;
+  checkInAt: string | null;
+  checkOutAt: string | null;
 };
 
-type DailyBuilder = Omit<DailyAttendance, "workingHours"> & {
-  checkInTs: number;
-  checkOutTs: number;
+type DailyAttendanceResult = {
+  date: string;
+  total: number;
+  activeCount: number;
+  presentCount: number;
+  absentCount: number;
+  items: DailyAttendanceItem[];
 };
 
 type Override = { checkIn: string | null; checkOut: string | null };
@@ -73,93 +62,50 @@ type EditForm = {
   checkOut: string;
 };
 
-function calcWorkingHours(
-  checkIn: string | null,
-  checkOut: string | null,
-): string {
-  if (!checkIn || !checkOut) return "—";
-  const [h1, m1] = checkIn.split(":").map(Number);
-  const [h2, m2] = checkOut.split(":").map(Number);
-  let mins = h2 * 60 + m2 - (h1 * 60 + m1);
+function todayLocal(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function toTime(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function calcWorkingHours(inIso: string | null, outIso: string | null): string {
+  if (!inIso || !outIso) return "—";
+  const a = new Date(inIso).getTime();
+  const b = new Date(outIso).getTime();
+  if (Number.isNaN(a) || Number.isNaN(b)) return "—";
+  let mins = Math.round((b - a) / 60000);
   if (mins < 0) mins += 24 * 60;
   return `${Math.floor(mins / 60)}j ${mins % 60}m`;
 }
 
-function toDaily(records: AttendanceItem[]): DailyAttendance[] {
-  const map = new Map<string, DailyBuilder>();
-  for (const r of records) {
-    const ts = new Date(r.timestamp).getTime();
-    if (Number.isNaN(ts)) continue;
-    const d = new Date(r.timestamp);
-    const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const time = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-    const key = `${r.employeeId ?? "unknown"}-${date}`;
-    const cur = map.get(key) ?? {
-      id: r.id,
-      employeeId: r.employeeId ?? "",
-      employeeName: r.employee?.name ?? "—",
-      date,
-      checkIn: null,
-      checkOut: null,
-      checkInTs: Number.POSITIVE_INFINITY,
-      checkOutTs: Number.NEGATIVE_INFINITY,
-    };
-    if (r.eventType === "CHECK_IN" && ts < cur.checkInTs) {
-      cur.checkIn = time;
-      cur.checkInTs = ts;
-    }
-    if (r.eventType === "CHECK_OUT" && ts > cur.checkOutTs) {
-      cur.checkOut = time;
-      cur.checkOutTs = ts;
-    }
-    map.set(key, cur);
-  }
-
-  return Array.from(map.values()).map((r) => ({
-    id: r.id,
-    employeeId: r.employeeId,
-    employeeName: r.employeeName,
-    date: r.date,
-    checkIn: r.checkIn,
-    checkOut: r.checkOut,
-    workingHours: calcWorkingHours(r.checkIn, r.checkOut),
-  }));
-}
-
 export default function AttendancePage() {
-  const [events, setEvents] = useState<AttendanceItem[]>([]);
+  const [daily, setDaily] = useState<DailyAttendanceResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [date, setDate] = useState(todayLocal());
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<EditForm | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const PAGE_SIZE = 10;
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search), 300);
-    return () => clearTimeout(t);
-  }, [search]);
-
-  useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const params = new URLSearchParams();
-        if (debouncedSearch) params.set("employee_id", debouncedSearch);
-        if (startDate) params.set("start_date", `${startDate}T00:00:00.000Z`);
-        if (endDate) params.set("end_date", `${endDate}T23:59:59.999Z`);
-        params.set("limit", "100");
-        const res = await apiFetchFull<AttendanceItem[]>(
-          `/v1/attendance?${params.toString()}`,
+        const res = await apiFetch<DailyAttendanceResult>(
+          `/v1/attendance/daily?date=${date}`,
         );
         if (!active) return;
-        setEvents(res.data ?? []);
+        setDaily(res);
       } catch (err) {
-        console.error("Gagal mengambil data absensi:", err);
-        if (active) setEvents([]);
+        console.error("Gagal mengambil kehadiran harian:", err);
+        if (active) setDaily(null);
       } finally {
         if (active) setLoading(false);
       }
@@ -167,49 +113,54 @@ export default function AttendancePage() {
     return () => {
       active = false;
     };
-  }, [debouncedSearch, startDate, endDate]);
+  }, [date]);
 
-  const summaries = useMemo(() => {
-    const list = toDaily(events);
-    list.sort(
-      (a, b) =>
-        b.date.localeCompare(a.date) || a.employeeName.localeCompare(b.employeeName),
+  const items = useMemo(() => {
+    const q = search.toLowerCase();
+    const list = daily?.items ?? [];
+    if (!q) return list;
+    return list.filter(
+      (i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.employeeId.toLowerCase().includes(q),
     );
-    return list;
-  }, [events]);
+  }, [daily, search]);
 
-  const totalPages = Math.max(1, Math.ceil(summaries.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const pageToUse = Math.min(page, totalPages);
-  const paged = summaries.slice(
-    (pageToUse - 1) * PAGE_SIZE,
-    pageToUse * PAGE_SIZE,
-  );
-  const start = summaries.length === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
-  const end = Math.min(pageToUse * PAGE_SIZE, summaries.length);
+  const paged = items.slice((pageToUse - 1) * PAGE_SIZE, pageToUse * PAGE_SIZE);
+  const start = items.length === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
+  const end = Math.min(pageToUse * PAGE_SIZE, items.length);
 
-  function keyOf(r: DailyAttendance): string {
-    return `${r.employeeId}-${r.date}`;
+  function keyOf(item: DailyAttendanceItem): string {
+    return `${item.employeeId}-${daily?.date ?? date}`;
   }
 
-  function effective(r: DailyAttendance) {
-    const ov = overrides[keyOf(r)];
-    const checkIn = ov?.checkIn ?? r.checkIn;
-    const checkOut = ov?.checkOut ?? r.checkOut;
+  function effective(item: DailyAttendanceItem) {
+    const ov = overrides[keyOf(item)];
+    const checkIn = ov?.checkIn ?? toTime(item.checkInAt);
+    const checkOut = ov?.checkOut ?? toTime(item.checkOutAt);
     return {
       checkIn,
       checkOut,
-      workingHours: ov ? calcWorkingHours(checkIn, checkOut) : r.workingHours,
+      workingHours: ov
+        ? calcWorkingHours(
+            ov.checkIn ? `${date}T${ov.checkIn}` : null,
+            ov.checkOut ? `${date}T${ov.checkOut}` : null,
+          )
+        : calcWorkingHours(item.checkInAt, item.checkOutAt),
     };
   }
 
-  function openEdit(r: DailyAttendance) {
-    const ov = overrides[keyOf(r)];
+  function openEdit(item: DailyAttendanceItem) {
+    const ov = overrides[keyOf(item)];
+    const cur = effective(item);
     setEditing({
-      key: keyOf(r),
-      employeeName: r.employeeName,
-      date: r.date,
-      checkIn: ov?.checkIn ?? r.checkIn ?? "",
-      checkOut: ov?.checkOut ?? r.checkOut ?? "",
+      key: keyOf(item),
+      employeeName: item.name,
+      date: daily?.date ?? date,
+      checkIn: ov?.checkIn ?? (cur.checkIn === "—" ? "" : cur.checkIn),
+      checkOut: ov?.checkOut ?? (cur.checkOut === "—" ? "" : cur.checkOut),
     });
   }
 
@@ -235,20 +186,24 @@ export default function AttendancePage() {
     const headers = [
       "Karyawan",
       "Employee ID",
+      "Departemen",
       "Tanggal",
       "Check In",
       "Check Out",
       "Jam Kerja",
+      "Status",
     ];
-    const rows = summaries.map((r) => {
-      const { checkIn, checkOut, workingHours } = effective(r);
+    const rows = items.map((i) => {
+      const { checkIn, checkOut, workingHours } = effective(i);
       return [
-        r.employeeName,
-        r.employeeId,
-        r.date,
-        checkIn ?? "-",
-        checkOut ?? "-",
+        i.name,
+        i.employeeId,
+        i.department ?? "-",
+        daily?.date ?? date,
+        checkIn === "—" ? "-" : checkIn,
+        checkOut === "—" ? "-" : checkOut,
         workingHours,
+        i.present ? "Hadir" : "Absen",
       ];
     });
 
@@ -257,10 +212,12 @@ export default function AttendancePage() {
     ws["!cols"] = [
       { wch: 22 },
       { wch: 16 },
+      { wch: 20 },
       { wch: 12 },
       { wch: 12 },
       { wch: 12 },
       { wch: 12 },
+      { wch: 10 },
     ];
 
     const headerCell = {
@@ -276,20 +233,28 @@ export default function AttendancePage() {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-    XLSX.writeFile(wb, `laporan-attendance-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.writeFile(wb, `laporan-attendance-${date}.xlsx`);
   }
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Attendance"
-        description="Pantau kehadiran karyawan hari ini & histori"
+        description="Daftar kehadiran karyawan harian"
         icon={<CalendarCheck className="size-6" />}
       >
-        <Button className="cursor-pointer" onClick={handleExport}>
-          <Download />
-          Ekspor Laporan
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {!loading && daily && (
+            <>
+              <Badge variant="secondary">{daily.presentCount} Hadir</Badge>
+              <Badge variant="outline">{daily.absentCount} Absen</Badge>
+            </>
+          )}
+          <Button className="cursor-pointer" onClick={handleExport}>
+            <Download />
+            Ekspor Laporan
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -302,31 +267,19 @@ export default function AttendancePage() {
               setSearch(e.target.value);
               setPage(1);
             }}
-            placeholder="Cari employee ID..."
+            placeholder="Cari nama atau employee ID..."
             className="h-10 bg-white pl-10"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 w-fit bg-white"
-          />
-          <span className="text-sm text-muted-foreground">s.d.</span>
-          <Input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setPage(1);
-            }}
-            className="h-10 w-fit bg-white"
-          />
-        </div>
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => {
+            setDate(e.target.value || todayLocal());
+            setPage(1);
+          }}
+          className="h-10 w-fit bg-white"
+        />
       </div>
 
       <div className="overflow-hidden rounded-md border border-border/60 bg-card">
@@ -352,7 +305,7 @@ export default function AttendancePage() {
                 </TableCell>
               </TableRow>
             )}
-            {!loading && paged.length === 0 && (
+            {!loading && items.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={6}
@@ -363,23 +316,20 @@ export default function AttendancePage() {
               </TableRow>
             )}
             {!loading &&
-              paged.map((r) => {
-                const { checkIn, checkOut, workingHours } = effective(r);
+              paged.map((item) => {
+                const { checkIn, checkOut, workingHours } = effective(item);
                 return (
-                  <TableRow key={`${r.id}-${r.date}`}>
+                  <TableRow key={`${item.id}-${daily?.date ?? date}`}>
                     <TableCell>
                       <div className="flex flex-col leading-tight">
-                        <span className="font-medium">{r.employeeName}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {r.employeeId}
-                        </span>
+                        <span className="font-medium">{item.name}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {r.date}
+                      {daily?.date ?? date}
                     </TableCell>
-                    <TableCell>{checkIn ?? "—"}</TableCell>
-                    <TableCell>{checkOut ?? "—"}</TableCell>
+                    <TableCell>{checkIn}</TableCell>
+                    <TableCell>{checkOut}</TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {workingHours}
                     </TableCell>
@@ -389,7 +339,7 @@ export default function AttendancePage() {
                           variant="ghost"
                           size="icon-sm"
                           title="Perbaiki catatan"
-                          onClick={() => openEdit(r)}
+                          onClick={() => openEdit(item)}
                         >
                           <Pencil />
                         </Button>
@@ -404,10 +354,10 @@ export default function AttendancePage() {
         <DataTablePagination
           page={pageToUse}
           pageCount={totalPages}
-          total={summaries.length}
+          total={items.length}
           start={start}
           end={end}
-          itemLabel="catatan"
+          itemLabel="karyawan"
           onPageChange={setPage}
         />
       </div>
@@ -417,7 +367,8 @@ export default function AttendancePage() {
           <DialogHeader>
             <DialogTitle>Perbaiki Catatan Kehadiran</DialogTitle>
             <DialogDescription>
-              Perbaiki jam kehadiran untuk {editing?.employeeName} ({editing?.date}).
+              Perbaiki jam kehadiran untuk {editing?.employeeName} (
+              {editing?.date}).
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={saveEdit} className="flex flex-col gap-4">
