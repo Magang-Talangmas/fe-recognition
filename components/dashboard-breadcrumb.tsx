@@ -27,7 +27,10 @@ const labelMap: Record<string, string> = {
 export function DashboardBreadcrumb() {
   const pathname = usePathname();
   const isHome = pathname === "/superadmin";
-  const label = labelMap[pathname] ?? "Dashboard";
+
+  const isReportDetail =
+    pathname.startsWith("/superadmin/reports/") &&
+    pathname !== "/superadmin/reports";
 
   return (
     <Breadcrumb>
@@ -39,8 +42,24 @@ export function DashboardBreadcrumb() {
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{label}</BreadcrumbPage>
+              {isReportDetail ? (
+                <BreadcrumbLink href="/superadmin/reports">
+                  Reports
+                </BreadcrumbLink>
+              ) : (
+                <BreadcrumbPage>{labelMap[pathname] ?? "Dashboard"}</BreadcrumbPage>
+              )}
             </BreadcrumbItem>
+            {isReportDetail && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>
+                    {decodeURIComponent(pathname.split("/").pop() ?? "")}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
           </>
         )}
       </BreadcrumbList>

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   FileBarChart,
   Download,
@@ -8,6 +9,7 @@ import {
   UserCheck,
   Clock4,
   UserX,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
+import { DataTablePagination } from "@/components/data-table-pagination";
+import { apiFetch } from "@/lib/api";
 
 type ReportRow = {
   code: string;
@@ -43,6 +47,22 @@ type ReportRow = {
   late: number;
   absent: number;
   unknown: number;
+};
+
+type ReportTotals = {
+  present: number;
+  late: number;
+  absent: number;
+  unknown: number;
+};
+
+type ReportResult = {
+  rows: ReportRow[];
+  totals: ReportTotals;
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
 };
 
 const reportTypes = [
@@ -54,62 +74,97 @@ const reportTypes = [
   { value: "unknown", label: "Deteksi Tidak Dikenal" },
 ];
 
-const mockRows: Record<string, ReportRow[]> = {
-  daily: [
-    { code: "Sen, 03 Agt 2026", label: "Senin", present: 96, late: 4, absent: 2, unknown: 1 },
-    { code: "Sel, 02 Agt 2026", label: "Selasa", present: 98, late: 2, absent: 0, unknown: 2 },
-    { code: "Sab, 01 Agt 2026", label: "Sabtu", present: 88, late: 3, absent: 5, unknown: 3 },
-  ],
-  weekly: [
-    { code: "W1", label: "Minggu 1 - Juli", present: 480, late: 15, absent: 12, unknown: 6 },
-    { code: "W2", label: "Minggu 2 - Juli", present: 495, late: 10, absent: 8, unknown: 4 },
-    { code: "W3", label: "Minggu 3 - Juli", present: 470, late: 18, absent: 15, unknown: 9 },
-  ],
-  monthly: [
-    { code: "Jul 2026", label: "Juli", present: 1895, late: 61, absent: 42, unknown: 23 },
-    { code: "Jun 2026", label: "Juni", present: 1830, late: 55, absent: 50, unknown: 19 },
-    { code: "Mei 2026", label: "Mei", present: 1901, late: 58, absent: 38, unknown: 21 },
-  ],
-  employee: [
-    { code: "EMP-001", label: "Andi Pratama", present: 22, late: 1, absent: 0, unknown: 0 },
-    { code: "EMP-002", label: "Siti Rahma", present: 22, late: 0, absent: 0, unknown: 0 },
-    { code: "EMP-003", label: "Budi Santoso", present: 20, late: 3, absent: 2, unknown: 0 },
-  ],
-  recognition: [
-    { code: "REC-01", label: "338 deteksi", present: 98, late: 0, absent: 0, unknown: 0 },
-    { code: "REC-02", label: "312 deteksi", present: 99, late: 0, absent: 0, unknown: 0 },
-  ],
-  unknown: [
-    { code: "UN-001", label: "CAM-01", present: 0, late: 0, absent: 0, unknown: 12 },
-    { code: "UN-002", label: "CAM-03", present: 0, late: 0, absent: 0, unknown: 7 },
-  ],
-};
+function monthRange(): { start: string; end: string } {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { start: fmt(start), end: fmt(end) };
+}
 
 export default function ReportsPage() {
+  const router = useRouter();
+  const { start: initialStart, end: initialEnd } = monthRange();
   const [reportType, setReportType] = useState("monthly");
-  const [startDate, setStartDate] = useState("2026-08-01");
-  const [endDate, setEndDate] = useState("2026-08-31");
+  const [startDate, setStartDate] = useState(initialStart);
+  const [endDate, setEndDate] = useState(initialEnd);
+  const [rows, setRows] = useState<ReportRow[]>([]);
+  const [totals, setTotals] = useState<ReportTotals>({
+    present: 0,
+    late: 0,
+    absent: 0,
+    unknown: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
+  const PAGE_SIZE = 10;
 
-  const rows = useMemo(
-    () => mockRows[reportType] ?? [],
-    [reportType]
-  );
+  const pageToUse = Math.min(page, totalPages);
+  const start = total === 0 ? 0 : (pageToUse - 1) * PAGE_SIZE + 1;
+  const end = Math.min(pageToUse * PAGE_SIZE, total);
 
-  const totals = useMemo(() => {
-    return rows.reduce(
-      (acc, r) => ({
-        present: acc.present + r.present,
-        late: acc.late + r.late,
-        absent: acc.absent + r.absent,
-        unknown: acc.unknown + r.unknown,
-      }),
-      { present: 0, late: 0, absent: 0, unknown: 0 }
-    );
-  }, [rows]);
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const params = new URLSearchParams();
+        params.set("type", reportType);
+        params.set("start_date", startDate);
+        params.set("end_date", endDate);
+        params.set("page", String(pageToUse));
+        params.set("per_page", String(PAGE_SIZE));
+        const data = await apiFetch<ReportResult>(
+          `/v1/reports?${params.toString()}`,
+        );
+        if (!active) return;
+        setRows(data?.rows ?? []);
+        setTotals(
+          data?.totals ?? { present: 0, late: 0, absent: 0, unknown: 0 },
+        );
+        setTotal(data?.total ?? 0);
+        setTotalPages(Math.max(1, data?.total_pages ?? 1));
+      } catch (err) {
+        console.error("Gagal mengambil laporan:", err);
+        if (active) {
+          setRows([]);
+          setTotals({ present: 0, late: 0, absent: 0, unknown: 0 });
+          setTotal(0);
+          setTotalPages(1);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [reportType, startDate, endDate, pageToUse, reloadKey]);
+
+  function refresh() {
+    setReloadKey((k) => k + 1);
+  }
 
   function handleExport() {
-    const headers = ["Kode", "Keterangan", "Hadir", "Terlambat", "Absen", "Tidak Dikenal"];
-    const data = rows.map((r) => [r.code, r.label, r.present, r.late, r.absent, r.unknown]);
+    const headers = [
+      "Kode",
+      "Keterangan",
+      "Hadir",
+      "Terlambat",
+      "Absen",
+      "Tidak Dikenal",
+    ];
+    const data = rows.map((r) => [
+      r.code,
+      r.label,
+      r.present,
+      r.late,
+      r.absent,
+      r.unknown,
+    ]);
     const csv = [headers, ...data]
       .map((row) =>
         row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
@@ -140,7 +195,13 @@ export default function ReportsPage() {
       <div className="flex flex-wrap items-end gap-4 rounded-md border border-border/60 bg-card p-4">
         <div className="flex flex-col gap-2">
           <Label>Jenis Laporan</Label>
-          <Select value={reportType} onValueChange={(v) => setReportType(v ?? "monthly")}>
+          <Select
+            value={reportType}
+            onValueChange={(v) => {
+              setReportType(v ?? "monthly");
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="h-10 w-56">
               <span className="flex flex-1 items-center text-left">
                 {reportTypes.find((t) => t.value === reportType)?.label}
@@ -161,7 +222,10 @@ export default function ReportsPage() {
             id="r-start"
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-fit bg-white"
           />
         </div>
@@ -171,17 +235,43 @@ export default function ReportsPage() {
             id="r-end"
             type="date"
             value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setPage(1);
+            }}
             className="h-10 w-fit bg-white"
           />
         </div>
+        <Button variant="outline" className="cursor-pointer" onClick={refresh}>
+          Muat Ulang
+        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard icon={<UserCheck className="size-5" />} tone="text-green-600 bg-green-100" label="Hadir" value={totals.present} />
-        <StatCard icon={<Clock4 className="size-5" />} tone="text-amber-600 bg-amber-100" label="Terlambat" value={totals.late} />
-        <StatCard icon={<UserX className="size-5" />} tone="text-red-600 bg-red-100" label="Absen" value={totals.absent} />
-        <StatCard icon={<Users className="size-5" />} tone="text-purple-600 bg-purple-100" label="Tidak Dikenal" value={totals.unknown} />
+        <StatCard
+          icon={<UserCheck className="size-5" />}
+          tone="text-green-600 bg-green-100"
+          label="Hadir"
+          value={totals.present}
+        />
+        <StatCard
+          icon={<Clock4 className="size-5" />}
+          tone="text-amber-600 bg-amber-100"
+          label="Terlambat"
+          value={totals.late}
+        />
+        <StatCard
+          icon={<UserX className="size-5" />}
+          tone="text-red-600 bg-red-100"
+          label="Absen"
+          value={totals.absent}
+        />
+        <StatCard
+          icon={<Users className="size-5" />}
+          tone="text-purple-600 bg-purple-100"
+          label="Tidak Dikenal"
+          value={totals.unknown}
+        />
       </div>
 
       <div className="overflow-hidden rounded-md border border-border/60 bg-card">
@@ -197,31 +287,64 @@ export default function ReportsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.length === 0 && (
+            {loading && (
               <TableRow>
-                <TableCell colSpan={6} className="py-12 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={6}
+                  className="py-12 text-center text-muted-foreground"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Memuat laporan...
+                  </span>
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && rows.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="py-12 text-center text-muted-foreground"
+                >
                   Tidak ada data untuk laporan ini.
                 </TableCell>
               </TableRow>
             )}
-            {rows.map((r) => (
-              <TableRow key={r.code}>
-                <TableCell className="font-medium">{r.code}</TableCell>
-                <TableCell className="text-muted-foreground">{r.label}</TableCell>
-                <TableCell>{r.present}</TableCell>
-                <TableCell>
-                  {r.late > 0 ? (
-                    <Badge variant="outline">{r.late}</Badge>
-                  ) : (
-                    r.late
-                  )}
-                </TableCell>
-                <TableCell>{r.absent}</TableCell>
-                <TableCell>{r.unknown}</TableCell>
-              </TableRow>
-            ))}
+            {!loading &&
+              rows.map((r) => (
+                <TableRow
+                  key={r.code}
+                  className="cursor-pointer transition-colors hover:bg-muted/50"
+                  onClick={() => router.push(`/superadmin/reports/${r.code}`)}
+                >
+                  <TableCell className="font-medium">{r.code}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {r.label}
+                  </TableCell>
+                  <TableCell>{r.present}</TableCell>
+                  <TableCell>
+                    {r.late > 0 ? (
+                      <Badge variant="outline">{r.late}</Badge>
+                    ) : (
+                      r.late
+                    )}
+                  </TableCell>
+                  <TableCell>{r.absent}</TableCell>
+                  <TableCell>{r.unknown}</TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
+
+        <DataTablePagination
+          page={pageToUse}
+          pageCount={totalPages}
+          total={total}
+          start={start}
+          end={end}
+          itemLabel="baris"
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );
@@ -238,10 +361,14 @@ function StatCard({ icon, tone, label, value }: StatProps) {
   return (
     <Card className="rounded-lg">
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm text-muted-foreground">{label}</CardTitle>
+        <CardTitle className="text-sm text-muted-foreground">
+          {label}
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex items-center gap-3">
-        <div className={`flex size-9 items-center justify-center rounded-md ${tone}`}>
+        <div
+          className={`flex size-9 items-center justify-center rounded-md ${tone}`}
+        >
           {icon}
         </div>
         <span className="text-2xl font-semibold">{value}</span>
