@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CalendarRange,
   Plus,
@@ -11,6 +11,7 @@ import {
   LogOut,
   Timer,
   CalendarDays,
+  CircleAlert,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,17 +35,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
+import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
 type Schedule = {
   id: string;
+  scheduleCode: string;
   name: string;
-  workingDays: string;
-  checkIn: string;
-  breakStart: string;
-  breakEnd: string;
-  checkOut: string;
-  lateTolerance: number;
+  workDays: string[];
+  checkInTime: string;
+  checkOutTime: string;
+  breakStartTime: string | null;
+  breakEndTime: string | null;
+  toleranceMinutes: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 const weekdays = [
@@ -57,107 +62,145 @@ const weekdays = [
   "Minggu",
 ];
 
-const initialSchedules: Schedule[] = [
-  {
-    id: "SCH-01",
-    name: "Shift Kantor",
-    workingDays: "Senin - Jumat",
-    checkIn: "08:00",
-    breakStart: "12:00",
-    breakEnd: "13:00",
-    checkOut: "17:00",
-    lateTolerance: 15,
-  },
-  {
-    id: "SCH-02",
-    name: "Shift Produksi",
-    workingDays: "Senin - Sabtu",
-    checkIn: "07:30",
-    breakStart: "11:30",
-    breakEnd: "12:30",
-    checkOut: "16:30",
-    lateTolerance: 10,
-  },
-  {
-    id: "SCH-03",
-    name: "Shift Security",
-    workingDays: "Senin - Minggu",
-    checkIn: "19:00",
-    breakStart: "23:00",
-    breakEnd: "00:00",
-    checkOut: "07:00",
-    lateTolerance: 5,
-  },
-];
-
 const emptyForm: Omit<Schedule, "id"> = {
+  scheduleCode: "",
   name: "",
-  workingDays: "",
-  checkIn: "08:00",
-  breakStart: "12:00",
-  breakEnd: "13:00",
-  checkOut: "17:00",
-  lateTolerance: 15,
+  workDays: [],
+  checkInTime: "08:00",
+  checkOutTime: "17:00",
+  breakStartTime: "12:00",
+  breakEndTime: "13:00",
+  toleranceMinutes: 15,
 };
 
+function daysLabel(days: string[]): string {
+  if (days.length === 0) return "-";
+  return weekdays.filter((w) => days.includes(w)).join(", ");
+}
+
 export default function SchedulePage() {
-  const [schedules, setSchedules] = useState<Schedule[]>(initialSchedules);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Schedule | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Schedule | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const data = await apiFetch<Schedule[]>("/v1/schedules");
+        if (!active) return;
+        setSchedules(data ?? []);
+      } catch (err) {
+        console.error("Gagal mengambil jadwal kerja:", err);
+        if (active) setSchedules([]);
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [reloadKey]);
+
+  function refresh() {
+    setReloadKey((k) => k + 1);
+  }
 
   function openAdd() {
     setEditing(null);
     setForm(emptyForm);
+    setFormError("");
     setFormOpen(true);
   }
 
   function openEdit(s: Schedule) {
     setEditing(s);
-    setForm({ ...s });
+    setForm({
+      scheduleCode: s.scheduleCode,
+      name: s.name,
+      workDays: s.workDays,
+      checkInTime: s.checkInTime,
+      checkOutTime: s.checkOutTime,
+      breakStartTime: s.breakStartTime ?? "",
+      breakEndTime: s.breakEndTime ?? "",
+      toleranceMinutes: s.toleranceMinutes,
+    });
+    setFormError("");
     setFormOpen(true);
   }
 
   function toggleDay(day: string) {
     setForm((prev) => {
-      const days = prev.workingDays
-        ? prev.workingDays.split(", ")
-        : [];
-      const exists = days.includes(day);
+      const exists = prev.workDays.includes(day);
       const next = exists
-        ? days.filter((d) => d !== day)
-        : [...days, day];
-      const ordered = weekdays.filter((w) => next.includes(w));
-      return { ...prev, workingDays: ordered.join(", ") };
+        ? prev.workDays.filter((d) => d !== day)
+        : [...prev.workDays, day];
+      return { ...prev, workDays: weekdays.filter((w) => next.includes(w)) };
     });
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (editing) {
-      setSchedules((prev) =>
-        prev.map((s) => (s.id === editing.id ? { ...s, ...form } : s))
+    setSaving(true);
+    setFormError("");
+    try {
+      const body = {
+        scheduleCode: form.scheduleCode,
+        name: form.name,
+        workDays: form.workDays,
+        checkInTime: form.checkInTime,
+        checkOutTime: form.checkOutTime,
+        breakStartTime: form.breakStartTime || null,
+        breakEndTime: form.breakEndTime || null,
+        toleranceMinutes: form.toleranceMinutes,
+      };
+      if (editing) {
+        await apiFetch(`/v1/schedules/${editing.id}`, {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        });
+        toast.success(`Jadwal ${form.name} berhasil diperbarui`);
+      } else {
+        await apiFetch("/v1/schedules", {
+          method: "POST",
+          body: JSON.stringify(body),
+        });
+        toast.success(`Jadwal ${form.name} berhasil ditambahkan`);
+      }
+      setFormOpen(false);
+      refresh();
+    } catch (err) {
+      console.error("Gagal menyimpan jadwal:", err);
+      setFormError(
+        err instanceof Error ? err.message : "Gagal menyimpan jadwal"
       );
-      toast.success(`Jadwal ${editing.name} berhasil diperbarui`);
-    } else {
-      const nextId = `SCH-${String(schedules.length + 1).padStart(2, "0")}`;
-      setSchedules((prev) => [{ id: nextId, ...form }, ...prev]);
-      toast.success(`Jadwal ${form.name} berhasil ditambahkan`);
+    } finally {
+      setSaving(false);
     }
-    setFormOpen(false);
   }
 
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteTarget) return;
-    setSchedules((prev) => prev.filter((s) => s.id !== deleteTarget.id));
-    toast.success(`Jadwal ${deleteTarget.name} berhasil dihapus`);
-    setDeleteTarget(null);
+    try {
+      await apiFetch(`/v1/schedules/${deleteTarget.id}`, { method: "DELETE" });
+      toast.success(`Jadwal ${deleteTarget.name} berhasil dihapus`);
+      setDeleteTarget(null);
+      refresh();
+    } catch (err) {
+      console.error("Gagal menghapus jadwal:", err);
+      toast.error(err instanceof Error ? err.message : "Gagal menghapus jadwal");
+    }
   }
 
   function updateField<K extends keyof Omit<Schedule, "id">>(
     key: K,
-    value: string
+    value: string | string[] | number
   ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
@@ -189,74 +232,90 @@ export default function SchedulePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {schedules.length === 0 && (
+            {loading && (
               <TableRow>
-                <TableCell colSpan={7} className="py-12 text-center text-muted-foreground">
+                <TableCell
+                  colSpan={7}
+                  className="py-12 text-center text-muted-foreground"
+                >
+                  Memuat jadwal kerja...
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && schedules.length === 0 && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="py-12 text-center text-muted-foreground"
+                >
                   Belum ada jadwal kerja.
                 </TableCell>
               </TableRow>
             )}
-            {schedules.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell>
-                  <div className="flex flex-col leading-tight">
-                    <span className="font-medium">{s.name}</span>
-                    <span className="text-xs text-muted-foreground">{s.id}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="hidden md:table-cell">
-                  <Badge variant="outline">
-                    <CalendarDays className="size-3" />
-                    {s.workingDays}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <span className="flex items-center gap-1.5">
-                    <LogIn className="size-3.5 text-green-600" />
-                    {s.checkIn}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Coffee className="size-3.5 text-amber-600" />
-                    {s.breakStart} - {s.breakEnd}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="flex items-center gap-1.5">
-                    <LogOut className="size-3.5 text-red-500" />
-                    {s.checkOut}
-                  </span>
-                </TableCell>
-                <TableCell className="hidden lg:table-cell">
-                  <span className="flex items-center gap-1.5 text-muted-foreground">
-                    <Timer className="size-3.5" />
-                    {s.lateTolerance} menit
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Edit"
-                      onClick={() => openEdit(s)}
-                    >
-                      <Pencil />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      title="Hapus"
-                      onClick={() => setDeleteTarget(s)}
-                      className="text-muted-foreground hover:text-red-600"
-                    >
-                      <Trash2 />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+            {!loading &&
+              schedules.map((s) => (
+                <TableRow key={s.id}>
+                  <TableCell>
+                    <div className="flex flex-col leading-tight">
+                      <span className="font-medium">{s.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {s.scheduleCode || s.id}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <Badge variant="outline">
+                      <CalendarDays className="size-3" />
+                      {daysLabel(s.workDays)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-1.5">
+                      <LogIn className="size-3.5 text-green-600" />
+                      {s.checkInTime}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Coffee className="size-3.5 text-amber-600" />
+                      {s.breakStartTime ?? "-"} - {s.breakEndTime ?? "-"}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="flex items-center gap-1.5">
+                      <LogOut className="size-3.5 text-red-500" />
+                      {s.checkOutTime}
+                    </span>
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                      <Timer className="size-3.5" />
+                      {s.toleranceMinutes} menit
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Edit"
+                        onClick={() => openEdit(s)}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title="Hapus"
+                        onClick={() => setDeleteTarget(s)}
+                        className="text-muted-foreground hover:text-red-600"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
           </TableBody>
         </Table>
       </div>
@@ -272,24 +331,40 @@ export default function SchedulePage() {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="s-name">Nama Jadwal</Label>
-              <Input
-                id="s-name"
-                required
-                value={form.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                placeholder="contoh: Shift Kantor"
-              />
+            {formError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <CircleAlert className="size-4 shrink-0" />
+                {formError}
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="s-code">Kode Jadwal</Label>
+                <Input
+                  id="s-code"
+                  required
+                  value={form.scheduleCode}
+                  onChange={(e) => updateField("scheduleCode", e.target.value)}
+                  placeholder="contoh: SHIFT-A"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="s-name">Nama Jadwal</Label>
+                <Input
+                  id="s-name"
+                  required
+                  value={form.name}
+                  onChange={(e) => updateField("name", e.target.value)}
+                  placeholder="contoh: Shift Pagi"
+                />
+              </div>
             </div>
 
             <div className="flex flex-col gap-2">
               <Label>Hari Kerja</Label>
               <div className="flex flex-wrap gap-2">
                 {weekdays.map((day) => {
-                  const active = form.workingDays
-                    .split(", ")
-                    .includes(day);
+                  const active = form.workDays.includes(day);
                   return (
                     <button
                       key={day}
@@ -315,8 +390,8 @@ export default function SchedulePage() {
                   id="s-in"
                   type="time"
                   required
-                  value={form.checkIn}
-                  onChange={(e) => updateField("checkIn", e.target.value)}
+                  value={form.checkInTime}
+                  onChange={(e) => updateField("checkInTime", e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -325,8 +400,8 @@ export default function SchedulePage() {
                   id="s-out"
                   type="time"
                   required
-                  value={form.checkOut}
-                  onChange={(e) => updateField("checkOut", e.target.value)}
+                  value={form.checkOutTime}
+                  onChange={(e) => updateField("checkOutTime", e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -334,8 +409,10 @@ export default function SchedulePage() {
                 <Input
                   id="s-bs"
                   type="time"
-                  value={form.breakStart}
-                  onChange={(e) => updateField("breakStart", e.target.value)}
+                  value={form.breakStartTime ?? ""}
+                  onChange={(e) =>
+                    updateField("breakStartTime", e.target.value)
+                  }
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -343,8 +420,8 @@ export default function SchedulePage() {
                 <Input
                   id="s-be"
                   type="time"
-                  value={form.breakEnd}
-                  onChange={(e) => updateField("breakEnd", e.target.value)}
+                  value={form.breakEndTime ?? ""}
+                  onChange={(e) => updateField("breakEndTime", e.target.value)}
                 />
               </div>
               <div className="flex flex-col gap-2">
@@ -353,9 +430,9 @@ export default function SchedulePage() {
                   id="s-tol"
                   type="number"
                   min={0}
-                  value={form.lateTolerance}
+                  value={form.toleranceMinutes}
                   onChange={(e) =>
-                    updateField("lateTolerance", e.target.value)
+                    updateField("toleranceMinutes", Number(e.target.value))
                   }
                 />
               </div>
@@ -369,7 +446,11 @@ export default function SchedulePage() {
               >
                 Batal
               </Button>
-              <Button type="submit" className="cursor-pointer">
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={saving}
+              >
                 {editing ? "Simpan Perubahan" : "Tambah"}
               </Button>
             </DialogFooter>
