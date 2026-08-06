@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Search, Download, CalendarCheck, Pencil } from "lucide-react";
+import {
+  Search,
+  Download,
+  CalendarCheck,
+  Pencil,
+  ClipboardCheck,
+  Camera,
+  CircleAlert,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +31,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Avatar,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { apiFetch } from "@/lib/api";
@@ -41,6 +53,12 @@ type DailyAttendanceItem = {
   confirmationStatus: string | null;
   checkInAt: string | null;
   checkOutAt: string | null;
+  photo: string | null;
+  permission: {
+    id: string;
+    type: string;
+    status: string;
+  } | null;
 };
 
 type DailyAttendanceResult = {
@@ -61,6 +79,22 @@ type EditForm = {
   checkIn: string;
   checkOut: string;
 };
+
+type IzinForm = {
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  type: string;
+  reason: string;
+  photo: File | null;
+};
+
+const izinTypes = ["Sakit", "Izin", "Cuti", "Lainnya"];
+
+function isCheckInPhoto(url: string | null): boolean {
+  if (!url) return false;
+  return !url.includes("employee_faces");
+}
 
 function todayLocal(): string {
   const d = new Date();
@@ -92,6 +126,11 @@ export default function AttendancePage() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState<EditForm | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
+  const [izinOpen, setIzinOpen] = useState(false);
+  const [izinForm, setIzinForm] = useState<IzinForm | null>(null);
+  const [izinSaving, setIzinSaving] = useState(false);
+  const [izinError, setIzinError] = useState("");
+  const [previewItem, setPreviewItem] = useState<DailyAttendanceItem | null>(null);
   const PAGE_SIZE = 10;
 
   useEffect(() => {
@@ -181,6 +220,48 @@ export default function AttendancePage() {
       },
     );
     setEditing(null);
+  }
+
+  function openIzin(item: DailyAttendanceItem) {
+    setIzinForm({
+      employeeId: item.employeeId,
+      employeeName: item.name,
+      date: daily?.date ?? date,
+      type: izinTypes[0],
+      reason: "",
+      photo: null,
+    });
+    setIzinError("");
+    setIzinOpen(true);
+  }
+
+  async function submitIzin(e: React.FormEvent) {
+    e.preventDefault();
+    if (!izinForm) return;
+    setIzinSaving(true);
+    setIzinError("");
+    try {
+      const body = new FormData();
+      body.append("employeeId", izinForm.employeeId);
+      body.append("date", izinForm.date);
+      body.append("type", izinForm.type);
+      body.append("reason", izinForm.reason);
+      if (izinForm.photo) body.append("photo", izinForm.photo);
+
+      await apiFetch("/v1/attendance/permissions", {
+        method: "POST",
+        body,
+      });
+      toast.success(
+        `Izin ${izinForm.type} untuk ${izinForm.employeeName} berhasil diajukan`,
+      );
+      setIzinOpen(false);
+    } catch (err) {
+      console.error("Gagal mengajukan izin:", err);
+      setIzinError(err instanceof Error ? err.message : "Gagal mengajukan izin");
+    } finally {
+      setIzinSaving(false);
+    }
   }
 
   function handleExport() {
@@ -288,6 +369,8 @@ export default function AttendancePage() {
           <TableHeader>
             <TableRow>
               <TableHead>Karyawan</TableHead>
+              <TableHead>Foto</TableHead>
+              <TableHead>Izin</TableHead>
               <TableHead>Tanggal</TableHead>
               <TableHead>Check In</TableHead>
               <TableHead>Check Out</TableHead>
@@ -299,7 +382,7 @@ export default function AttendancePage() {
             {loading && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   className="py-12 text-center text-muted-foreground"
                 >
                   Memuat data kehadiran...
@@ -309,7 +392,7 @@ export default function AttendancePage() {
             {!loading && items.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={8}
                   className="py-12 text-center text-muted-foreground"
                 >
                   Tidak ada data kehadiran.
@@ -326,6 +409,39 @@ export default function AttendancePage() {
                         <span className="font-medium">{item.name}</span>
                       </div>
                     </TableCell>
+                    <TableCell>
+                      {isCheckInPhoto(item.photo) ? (
+                        <button
+                          type="button"
+                          title="Lihat foto"
+                          className="cursor-pointer rounded-full"
+                          onClick={() => setPreviewItem(item)}
+                        >
+                          <Avatar className="size-9">
+                            <AvatarImage src={item.photo!} alt={item.name} />
+                          </Avatar>
+                        </button>
+                      ) : (
+                        <span className="block size-9" />
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {item.permission ? (
+                        <Badge
+                          variant={
+                            item.permission.status === "APPROVED"
+                              ? "secondary"
+                              : item.permission.status === "REJECTED"
+                                ? "destructive"
+                                : "outline"
+                          }
+                        >
+                          {item.permission.type} · {item.permission.status}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {daily?.date ?? date}
                     </TableCell>
@@ -335,7 +451,15 @@ export default function AttendancePage() {
                       {workingHours}
                     </TableCell>
                     <TableCell>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Ajukan izin"
+                          onClick={() => openIzin(item)}
+                        >
+                          <ClipboardCheck />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -414,6 +538,145 @@ export default function AttendancePage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={izinOpen} onOpenChange={setIzinOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Ajukan Izin</DialogTitle>
+            <DialogDescription>
+              Ajukan izin untuk {izinForm?.employeeName} ({izinForm?.employeeId})
+              pada {izinForm?.date}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={submitIzin} className="flex flex-col gap-4">
+            {izinError && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <CircleAlert className="size-4 shrink-0" />
+                {izinError}
+              </div>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="i-type">Jenis Izin</Label>
+                <select
+                  id="i-type"
+                  value={izinForm?.type ?? izinTypes[0]}
+                  onChange={(e) =>
+                    setIzinForm((prev) =>
+                      prev ? { ...prev, type: e.target.value } : prev,
+                    )
+                  }
+                  className="h-10 cursor-pointer rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-ring"
+                >
+                  {izinTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="i-date">Tanggal</Label>
+                <Input
+                  id="i-date"
+                  type="date"
+                  value={izinForm?.date ?? todayLocal()}
+                  onChange={(e) =>
+                    setIzinForm((prev) =>
+                      prev ? { ...prev, date: e.target.value } : prev,
+                    )
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="i-reason">Alasan</Label>
+              <Input
+                id="i-reason"
+                required
+                value={izinForm?.reason ?? ""}
+                onChange={(e) =>
+                  setIzinForm((prev) =>
+                    prev ? { ...prev, reason: e.target.value } : prev,
+                  )
+                }
+                placeholder="contoh: Sakit dengan surat dokter"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label>Bukti Foto</Label>
+              <label className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground hover:bg-muted/50">
+                <Camera className="size-5" />
+                {izinForm?.photo
+                  ? izinForm.photo.name
+                  : "Klik untuk unggah bukti foto izin"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setIzinForm((prev) => (prev ? { ...prev, photo: f } : prev));
+                  }}
+                />
+              </label>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                className="cursor-pointer"
+                onClick={() => setIzinOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={izinSaving}
+              >
+                {izinSaving ? "Mengirim..." : "Ajukan Izin"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!previewItem} onOpenChange={() => setPreviewItem(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Foto Kehadiran</DialogTitle>
+            <DialogDescription>
+              Foto {previewItem?.name} ({previewItem?.employeeId}) —{" "}
+              {daily?.date ?? date}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-3">
+            {isCheckInPhoto(previewItem?.photo ?? null) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewItem!.photo!}
+                alt={`Foto ${previewItem!.name}`}
+                className="max-h-96 w-full rounded-lg border border-border object-cover"
+              />
+            )}
+            <div className="flex items-center gap-2 text-sm">
+              <Badge variant="outline">{previewItem?.permission?.type ?? "Hadir"}</Badge>
+              <Badge variant={previewItem?.permission?.status === "APPROVED" ? "secondary" : "outline"}>
+                {previewItem?.permission?.status ?? "—"}
+              </Badge>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => setPreviewItem(null)}
+            >
+              Tutup
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

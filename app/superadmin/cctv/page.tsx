@@ -591,12 +591,12 @@ export default function CctvPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div className="col-span-2 flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Video className="size-3.5" />
+                  <Video className="size-3.5 shrink-0" />
                   Sumber Kamera
                 </span>
-                <span className="text-sm font-medium">
+                <span className="break-all text-sm font-medium">
                   {syncResult?.camera_source}
                 </span>
               </div>
