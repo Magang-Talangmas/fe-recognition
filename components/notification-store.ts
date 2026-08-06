@@ -240,3 +240,14 @@ export function setNotificationRead(id: string, read: boolean) {
     }).catch(() => {});
   }
 }
+
+export async function loadNotifications() {
+  try {
+    const data = await apiFetch<{ items: Notification[]; total: number }>(
+      "/v1/live/notifications?limit=50"
+    );
+    if (data?.items) seedNotifications(data.items);
+  } catch (err) {
+    console.error("Gagal mengambil notifikasi:", err);
+  }
+}

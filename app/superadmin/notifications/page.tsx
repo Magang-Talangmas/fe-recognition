@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bell,
   CalendarCheck,
@@ -25,6 +25,7 @@ import {
   markAllNotificationsRead,
   toggleNotificationRead,
   useNotifications,
+  loadNotifications,
   type NotificationType,
 } from "@/components/notification-store";
 
@@ -62,6 +63,10 @@ const typeMeta: Record<
 export default function NotificationsPage() {
   const items = useNotifications();
   const [typeFilter, setTypeFilter] = useState<string>("all");
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   const filtered = useMemo(() => {
     return typeFilter === "all"

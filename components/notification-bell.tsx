@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -26,6 +27,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   useNotifications,
+  loadNotifications,
   type NotificationType,
 } from "@/components/notification-store";
 
@@ -48,6 +50,10 @@ const toneMap: Record<NotificationType, string> = {
 export function NotificationBell() {
   const items = useNotifications();
   const unread = items.filter((n) => !n.read).length;
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   return (
     <DropdownMenu>
