@@ -16,6 +16,13 @@ import {
   RefreshCw,
   Wifi,
   WifiOff,
+  Bot,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  PlusCircle,
+  ArrowUpCircle,
+  ArrowDownCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -269,12 +276,16 @@ export default function CctvPage() {
         icon={<Camera className="size-6" />}
       >
         <Button
-          variant="outline"
+          variant="secondary"
           className="cursor-pointer"
           onClick={handleSync}
           disabled={syncing}
         >
-          <RefreshCw className={syncing ? "animate-spin" : ""} />
+          {syncing ? (
+            <RefreshCw className="animate-spin" />
+          ) : (
+            <Bot className="text-primary" />
+          )}
           {syncing ? "Menyinkronkan..." : "Sinkronisasi ML"}
         </Button>
         <Button className="cursor-pointer" onClick={openAdd}>
@@ -539,45 +550,98 @@ export default function CctvPage() {
       </Dialog>
 
       <Dialog open={!!syncResult} onOpenChange={() => setSyncResult(null)}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Hasil Sinkronisasi</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="size-5 text-primary" />
+              Hasil Sinkronisasi ML
+            </DialogTitle>
             <DialogDescription>
               Ringkasan sinkronisasi kamera dengan ML engine.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col gap-3 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Status Engine</span>
-              <Badge
-                variant={
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/50 px-4 py-3">
+              <div
+                className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${
                   syncResult?.engine_status === "ONLINE"
-                    ? "secondary"
-                    : "destructive"
-                }
+                    ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400"
+                    : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+                }`}
               >
-                {syncResult?.engine_status}
-              </Badge>
+                {syncResult?.engine_status === "ONLINE" ? (
+                  <CheckCircle2 className="size-5" />
+                ) : (
+                  <XCircle className="size-5" />
+                )}
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="text-sm font-medium">Status ML Engine</span>
+                <span
+                  className={`text-sm ${
+                    syncResult?.engine_status === "ONLINE"
+                      ? "text-green-600 dark:text-green-400"
+                      : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {syncResult?.engine_status === "ONLINE"
+                    ? "Online — siap memproses wajah"
+                    : "Offline — periksa koneksi ML engine"}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Sumber Kamera</span>
-              <span className="font-medium">{syncResult?.camera_source}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Camera ID</span>
-              <span className="font-medium">{syncResult?.cameraId}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Dibuat</span>
-              <span className="font-medium">{syncResult?.created}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Diperbarui</span>
-              <span className="font-medium">{syncResult?.updated}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Ditandai Offline</span>
-              <span className="font-medium">{syncResult?.marked_offline}</span>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Video className="size-3.5" />
+                  Sumber Kamera
+                </span>
+                <span className="text-sm font-medium">
+                  {syncResult?.camera_source}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Camera className="size-3.5" />
+                  Camera ID
+                </span>
+                <span className="text-sm font-medium">
+                  {syncResult?.cameraId}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <PlusCircle className="size-3.5" />
+                  Dibuat
+                </span>
+                <span className="text-sm font-medium">
+                  {syncResult?.created}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ArrowUpCircle className="size-3.5" />
+                  Diperbarui
+                </span>
+                <span className="text-sm font-medium">
+                  {syncResult?.updated}
+                </span>
+              </div>
+              <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-muted/30 px-4 py-3">
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <ArrowDownCircle className="size-3.5" />
+                  Ditandai Offline
+                </span>
+                <span
+                  className={`text-sm font-medium ${
+                    (syncResult?.marked_offline ?? 0) > 0
+                      ? "text-red-600 dark:text-red-400"
+                      : ""
+                  }`}
+                >
+                  {syncResult?.marked_offline}
+                </span>
+              </div>
             </div>
           </div>
           <DialogFooter>

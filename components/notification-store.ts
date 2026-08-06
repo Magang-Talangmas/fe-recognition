@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { apiFetch } from "@/lib/api";
 
 export type NotificationType =
   | "checkin"
@@ -14,8 +15,9 @@ export type Notification = {
   type: NotificationType;
   title: string;
   description: string;
-  time: string;
+  time: string; // label relatif ("2 menit lalu")
   read: boolean;
+  createdAt?: string; // ISO dari backend, untuk format relatif & urutan
 };
 
 let notifications: Notification[] = [
@@ -136,16 +138,41 @@ function nowLabel() {
   return new Date().toLocaleTimeString("id-ID", { hour12: false });
 }
 
+export function formatRelativeTime(
+  iso?: string,
+  fallback?: string
+): string {
+  if (!iso) return fallback ?? "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return fallback ?? "";
+  const diff = Date.now() - then;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "Baru saja";
+  if (min < 60) return `${min} menit lalu`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} jam lalu`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "Kemarin";
+  if (d < 7) return `${d} hari lalu`;
+  return new Date(iso).toLocaleDateString("id-ID");
+}
+
 export function useNotifications(): Notification[] {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
 
 export function pushNotification(
-  n: Omit<Notification, "id" | "time" | "read">
+  n: Omit<Notification, "id" | "time" | "read"> & { id?: string }
 ) {
+  const entry: Notification = {
+    ...n,
+    id: n.id ?? `N-${Date.now()}`,
+    time: n.createdAt ? formatRelativeTime(n.createdAt) : nowLabel(),
+    read: false,
+  };
   notifications = [
-    { ...n, id: `N-${Date.now()}`, time: nowLabel(), read: false },
-    ...notifications,
+    entry,
+    ...notifications.filter((x) => x.id !== entry.id),
   ].slice(0, 50);
   emit();
 }
@@ -155,16 +182,61 @@ export function markNotificationRead(id: string) {
     n.id === id ? { ...n, read: true } : n
   );
   emit();
+  apiFetch(`/v1/live/notifications/${id}/read`, {
+    method: "PATCH",
+  }).catch(() => {});
 }
 
 export function toggleNotificationRead(id: string) {
-  notifications = notifications.map((n) =>
-    n.id === id ? { ...n, read: !n.read } : n
-  );
+  let updated: Notification | undefined;
+  notifications = notifications.map((n) => {
+    if (n.id !== id) return n;
+    updated = { ...n, read: !n.read };
+    return updated;
+  });
   emit();
+  if (updated?.read) {
+    apiFetch(`/v1/live/notifications/${id}/read`, {
+      method: "PATCH",
+    }).catch(() => {});
+  }
 }
 
 export function markAllNotificationsRead() {
   notifications = notifications.map((n) => ({ ...n, read: true }));
   emit();
+  apiFetch("/v1/live/notifications/read-all", {
+    method: "PATCH",
+  }).catch(() => {});
+}
+
+export function seedNotifications(list: Notification[]) {
+  const normalized = list.map((n) => ({
+    ...n,
+    time: formatRelativeTime(n.createdAt, n.time),
+  }));
+  const map = new Map<string, Notification>();
+  for (const n of [...normalized, ...notifications]) {
+    if (!map.has(n.id)) map.set(n.id, n);
+  }
+  notifications = Array.from(map.values())
+    .sort((a, b) => {
+      const ta = a.createdAt ? +new Date(a.createdAt) : 0;
+      const tb = b.createdAt ? +new Date(b.createdAt) : 0;
+      return tb - ta;
+    })
+    .slice(0, 50);
+  emit();
+}
+
+export function setNotificationRead(id: string, read: boolean) {
+  notifications = notifications.map((n) =>
+    n.id === id ? { ...n, read } : n
+  );
+  emit();
+  if (read) {
+    apiFetch(`/v1/live/notifications/${id}/read`, {
+      method: "PATCH",
+    }).catch(() => {});
+  }
 }
