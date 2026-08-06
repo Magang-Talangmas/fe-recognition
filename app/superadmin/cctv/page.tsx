@@ -13,6 +13,9 @@ import {
   MapPin,
   Search,
   CircleAlert,
+  RefreshCw,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -45,11 +48,20 @@ type Cctv = {
   cameraId: string;
   name: string;
   location: string;
-  rtspUrl: string;
+  rtspUrl: string | null;
   online: boolean;
   enabled: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+type CctvSyncResult = {
+  engine_status: "ONLINE" | "OFFLINE";
+  camera_source: string;
+  cameraId: string;
+  created: number;
+  updated: number;
+  marked_offline: number;
 };
 
 type CctvListData = {
@@ -82,6 +94,8 @@ export default function CctvPage() {
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Cctv | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<CctvSyncResult | null>(null);
   const PAGE_SIZE = 10;
 
   const pageToUse = Math.min(page, totalPages);
@@ -141,7 +155,7 @@ export default function CctvPage() {
 
   function openEdit(c: Cctv) {
     setEditing(c);
-    setForm({ name: c.name, location: c.location, rtspUrl: c.rtspUrl });
+    setForm({ name: c.name, location: c.location, rtspUrl: c.rtspUrl ?? "" });
     setFormError("");
     setFormOpen(true);
   }
@@ -195,6 +209,39 @@ export default function CctvPage() {
     }
   }
 
+  async function toggleOnline(c: Cctv) {
+    try {
+      const res = await apiFetch<Cctv>(
+        `/v1/cctv/${c.id}/status`,
+        { method: "PATCH" },
+      );
+      setCctvs((prev) =>
+        prev.map((x) => (x.id === c.id ? { ...x, online: res.online } : x)),
+      );
+      toast.success(`${c.name} sekarang ${res.online ? "online" : "offline"}`);
+    } catch (err) {
+      console.error("Gagal mengubah status online CCTV:", err);
+      toast.error(err instanceof Error ? err.message : "Gagal mengubah status online CCTV");
+    }
+  }
+
+  async function handleSync() {
+    setSyncing(true);
+    try {
+      const res = await apiFetch<CctvSyncResult>("/v1/cctv/sync", {
+        method: "POST",
+      });
+      setSyncResult(res);
+      refresh();
+      toast.success("Sinkronisasi ML engine selesai");
+    } catch (err) {
+      console.error("Gagal sinkronisasi ML engine:", err);
+      toast.error(err instanceof Error ? err.message : "Gagal sinkronisasi ML engine");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget) return;
     try {
@@ -221,6 +268,15 @@ export default function CctvPage() {
         description="Kelola perangkat kamera pengenalan wajah"
         icon={<Camera className="size-6" />}
       >
+        <Button
+          variant="outline"
+          className="cursor-pointer"
+          onClick={handleSync}
+          disabled={syncing}
+        >
+          <RefreshCw className={syncing ? "animate-spin" : ""} />
+          {syncing ? "Menyinkronkan..." : "Sinkronisasi ML"}
+        </Button>
         <Button className="cursor-pointer" onClick={openAdd}>
           <Plus />
           Tambah CCTV
@@ -320,9 +376,23 @@ export default function CctvPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={c.online ? "secondary" : "outline"}>
-                      {c.online ? "Online" : "Offline"}
-                    </Badge>
+                    <div className="flex items-center gap-1.5">
+                      <Badge variant={c.online ? "secondary" : "outline"}>
+                        {c.online ? "Online" : "Offline"}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        title={c.online ? "Tandai offline" : "Tandai online"}
+                        onClick={() => toggleOnline(c)}
+                      >
+                        {c.online ? (
+                          <Wifi className="text-green-600" />
+                        ) : (
+                          <WifiOff className="text-zinc-400" />
+                        )}
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Button
@@ -463,6 +533,60 @@ export default function CctvPage() {
             >
               <Trash2 />
               Hapus
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!syncResult} onOpenChange={() => setSyncResult(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Hasil Sinkronisasi</DialogTitle>
+            <DialogDescription>
+              Ringkasan sinkronisasi kamera dengan ML engine.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Status Engine</span>
+              <Badge
+                variant={
+                  syncResult?.engine_status === "ONLINE"
+                    ? "secondary"
+                    : "destructive"
+                }
+              >
+                {syncResult?.engine_status}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Sumber Kamera</span>
+              <span className="font-medium">{syncResult?.camera_source}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Camera ID</span>
+              <span className="font-medium">{syncResult?.cameraId}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Dibuat</span>
+              <span className="font-medium">{syncResult?.created}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Diperbarui</span>
+              <span className="font-medium">{syncResult?.updated}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Ditandai Offline</span>
+              <span className="font-medium">{syncResult?.marked_offline}</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="cursor-pointer"
+              onClick={() => setSyncResult(null)}
+            >
+              Tutup
             </Button>
           </DialogFooter>
         </DialogContent>
