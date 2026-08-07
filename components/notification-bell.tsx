@@ -48,7 +48,8 @@ const toneMap: Record<NotificationType, string> = {
 };
 
 export function NotificationBell() {
-  const items = useNotifications();
+  const all = useNotifications();
+  const items = all.filter((n) => n.type === "checkin");
   const unread = items.filter((n) => !n.read).length;
 
   useEffect(() => {

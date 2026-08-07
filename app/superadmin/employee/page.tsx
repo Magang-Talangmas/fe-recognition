@@ -208,6 +208,12 @@ export default function EmployeePage() {
       body.append("department", form.department);
       body.append("status", form.status);
       if (form.joinedAt) body.append("joinedAt", form.joinedAt);
+      if (editing) {
+        const keptUrls = form.photos
+          .filter((p) => !p.file)
+          .map((p) => p.url);
+        body.append("photoUrls", JSON.stringify(keptUrls));
+      }
       form.photos.forEach((p) => {
         if (p.file) body.append("photos", p.file);
       });

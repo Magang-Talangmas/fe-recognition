@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
 import {
   Bell,
   CalendarCheck,
@@ -14,12 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { PageHeader } from "@/components/page-header";
 import {
   markAllNotificationsRead,
@@ -61,18 +55,12 @@ const typeMeta: Record<
 };
 
 export default function NotificationsPage() {
-  const items = useNotifications();
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const all = useNotifications();
+  const items = all.filter((n) => n.type === "checkin");
 
   useEffect(() => {
     loadNotifications();
   }, []);
-
-  const filtered = useMemo(() => {
-    return typeFilter === "all"
-      ? items
-      : items.filter((n) => n.type === typeFilter);
-  }, [items, typeFilter]);
 
   const unread = items.filter((n) => !n.read).length;
 
@@ -95,38 +83,18 @@ export default function NotificationsPage() {
       </PageHeader>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select
-          value={typeFilter}
-          onValueChange={(v) => setTypeFilter(v ?? "all")}
-        >
-          <SelectTrigger className="h-10">
-            <span className="flex flex-1 items-center text-left">
-              {typeFilter === "all"
-                ? "Semua Jenis"
-                : typeMeta[typeFilter as NotificationType].label}
-            </span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Semua Jenis</SelectItem>
-            {(Object.keys(typeMeta) as NotificationType[]).map((t) => (
-              <SelectItem key={t} value={t}>
-                {typeMeta[t].label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
         <Badge variant="outline">{unread} belum dibaca</Badge>
       </div>
 
       <div className="flex flex-col gap-3">
-        {filtered.length === 0 && (
+        {items.length === 0 && (
           <Card className="rounded-lg">
             <CardContent className="py-12 text-center text-sm text-muted-foreground">
               Tidak ada notifikasi.
             </CardContent>
           </Card>
         )}
-        {filtered.map((n) => {
+        {items.map((n) => {
           const meta = typeMeta[n.type];
           const Icon = meta.icon;
           return (
