@@ -42,6 +42,7 @@ type Recognition = {
   confidence: number;
   status: "Verified" | "Unknown";
   thumbnail: string | null;
+  notificationId: string | null;
 };
 
 type RecognitionList = {
@@ -64,6 +65,7 @@ export default function LiveMonitoringPage() {
   const [sseConnected, setSseConnected] = useState(false);
   const [failedFeeds, setFailedFeeds] = useState<Set<string>>(new Set());
   const esRef = useRef<EventSource | null>(null);
+  const unknownRefetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onlineCount = feeds.filter((f) => f.online).length;
   const unknownCount = live.filter((r) => r.status === "Unknown").length;
@@ -141,7 +143,7 @@ export default function LiveMonitoringPage() {
         pushNotification({
           type: "recognition",
           title: "Pengenalan Berhasil",
-          description: `${d.name ?? "Karyawan"} diverifikasi di ${
+          description: `${d.name ?? d.employeeId ?? "Karyawan"} diverifikasi di ${
             d.cameraName ?? d.cameraId
           } (confidence ${d.confidence.toFixed(1)}%).`,
         });
@@ -157,10 +159,16 @@ export default function LiveMonitoringPage() {
         pushNotification({
           type: "unknown",
           title: "Wajah Tidak Dikenal",
-          description: `Wajah unknown terdeteksi di ${
+          description: `${d.name ?? d.employeeId ?? "Wajah unknown"} terdeteksi di ${
             d.cameraName ?? d.cameraId
           } (confidence ${d.confidence.toFixed(1)}%).`,
         });
+        if (unknownRefetchRef.current) {
+          clearTimeout(unknownRefetchRef.current);
+        }
+        unknownRefetchRef.current = setTimeout(() => {
+          loadRecognitions();
+        }, 1500);
       } catch (err) {
         console.error("Gagal memproses event unknown:", err);
       }
@@ -224,9 +232,13 @@ export default function LiveMonitoringPage() {
     return () => {
       es.close();
       esRef.current = null;
+      if (unknownRefetchRef.current) {
+        clearTimeout(unknownRefetchRef.current);
+        unknownRefetchRef.current = null;
+      }
       setSseConnected(false);
     };
-  }, []);
+  }, [loadRecognitions]);
 
   async function refresh() {
     setRefreshing(true);
@@ -374,11 +386,11 @@ export default function LiveMonitoringPage() {
                   key={r.id}
                   className="flex items-center justify-between gap-3 py-3"
                 >
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-sm font-medium">
-                      {r.name ?? "Unknown"}
+                  <div className="flex min-w-0 flex-col leading-tight">
+                    <span className="truncate text-sm font-medium">
+                      {r.name ?? r.employeeId ?? "Unknown"}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="truncate text-xs text-muted-foreground">
                       {r.cameraName || r.cameraId} · {r.time}
                     </span>
                   </div>
