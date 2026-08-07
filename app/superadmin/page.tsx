@@ -19,7 +19,7 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, API_URL } from "@/lib/api";
 
 type Summary = {
   totalEmployees: number;
@@ -37,6 +37,16 @@ type Activity = {
   time: string;
   status: string;
   camera: string;
+};
+
+type Feed = {
+  id: string;
+  name: string;
+  location: string;
+  online: boolean;
+  rtspUrl: string | null;
+  snapshotUrl: string | null;
+  streamUrl: string | null;
 };
 
 const statDefs = [
@@ -111,19 +121,22 @@ export default function DashboardPage() {
     recentActivity: 0,
   });
   const [activities, setActivities] = useState<Activity[]>([]);
+  const [feeds, setFeeds] = useState<Feed[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const [summaryRes, activityRes] = await Promise.all([
+        const [summaryRes, activityRes, feedsRes] = await Promise.all([
           apiFetch<Summary>("/v1/dashboard/summary"),
           apiFetch<Activity[]>("/v1/dashboard/recent-activity"),
+          apiFetch<Feed[]>("/v1/live/feeds"),
         ]);
         if (!active) return;
         if (summaryRes) setSummary(summaryRes);
         if (activityRes) setActivities(activityRes);
+        if (feedsRes) setFeeds(feedsRes);
       } catch (err) {
         console.error("Gagal mengambil data dashboard:", err);
       } finally {
@@ -182,18 +195,74 @@ export default function DashboardPage() {
               Live CCTV Feed
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-            <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <VideoOff className="size-6" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              CCTV belum terhubung — menunggu integrasi kamera.
-            </p>
+          <CardContent className="flex flex-col gap-3">
+            {loading ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <Loader2 className="size-6 animate-spin" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Memuat feed kamera...
+                </p>
+              </div>
+            ) : feeds.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                  <VideoOff className="size-6" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  CCTV belum terhubung — menunggu integrasi kamera.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {feeds.slice(0, 4).map((f) => (
+                  <div
+                    key={f.id}
+                    className="overflow-hidden rounded-lg border border-border/60"
+                  >
+                    <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
+                      {f.online && (f.streamUrl || f.snapshotUrl) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
+                          alt={`Live CCTV ${f.name}`}
+                          className="absolute inset-0 h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <VideoOff className="size-6 text-zinc-600" />
+                      )}
+                      {f.online && (
+                        <span className="absolute left-2 top-2 flex items-center gap-1 rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                          <span className="size-1 animate-pulse rounded-full bg-white" />
+                          LIVE
+                        </span>
+                      )}
+                      <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                        {f.id}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 px-3 py-2">
+                      <div className="flex flex-col leading-tight">
+                        <span className="text-sm font-medium">{f.name}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {f.location}
+                        </span>
+                      </div>
+                      <Badge variant={f.online ? "secondary" : "outline"}>
+                        {f.online ? "Online" : "Offline"}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
           <CardContent className="pt-0">
             <div className="flex justify-end">
               <Link
-                href="/superadmin/cctv"
+                href="/superadmin/live"
                 className="flex items-center gap-0.5 text-xs font-medium text-primary hover:underline"
               >
                 Lihat selengkapnya
