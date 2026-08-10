@@ -202,33 +202,39 @@ export default function CctvPage() {
 
   async function toggleEnabled(c: Cctv) {
     try {
-      const res = await apiFetch<Cctv>(
-        `/v1/cctv/${c.id}/enabled`,
-        { method: "PATCH" },
-      );
+      const res = await apiFetch<Cctv>(`/v1/cctv/${c.id}/enabled`, {
+        method: "PATCH",
+      });
       setCctvs((prev) =>
         prev.map((x) => (x.id === c.id ? { ...x, enabled: res.enabled } : x)),
       );
-      toast.success(`${c.name} ${res.enabled ? "diaktifkan" : "dinonaktifkan"}`);
+      toast.success(
+        `${c.name} ${res.enabled ? "diaktifkan" : "dinonaktifkan"}`,
+      );
     } catch (err) {
       console.error("Gagal mengubah status CCTV:", err);
-      toast.error(err instanceof Error ? err.message : "Gagal mengubah status CCTV");
+      toast.error(
+        err instanceof Error ? err.message : "Gagal mengubah status CCTV",
+      );
     }
   }
 
   async function toggleOnline(c: Cctv) {
     try {
-      const res = await apiFetch<Cctv>(
-        `/v1/cctv/${c.id}/status`,
-        { method: "PATCH" },
-      );
+      const res = await apiFetch<Cctv>(`/v1/cctv/${c.id}/status`, {
+        method: "PATCH",
+      });
       setCctvs((prev) =>
         prev.map((x) => (x.id === c.id ? { ...x, online: res.online } : x)),
       );
       toast.success(`${c.name} sekarang ${res.online ? "online" : "offline"}`);
     } catch (err) {
       console.error("Gagal mengubah status online CCTV:", err);
-      toast.error(err instanceof Error ? err.message : "Gagal mengubah status online CCTV");
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Gagal mengubah status online CCTV",
+      );
     }
   }
 
@@ -243,7 +249,9 @@ export default function CctvPage() {
       toast.success("Sinkronisasi ML engine selesai");
     } catch (err) {
       console.error("Gagal sinkronisasi ML engine:", err);
-      toast.error(err instanceof Error ? err.message : "Gagal sinkronisasi ML engine");
+      toast.error(
+        err instanceof Error ? err.message : "Gagal sinkronisasi ML engine",
+      );
     } finally {
       setSyncing(false);
     }
@@ -262,7 +270,10 @@ export default function CctvPage() {
     }
   }
 
-  function updateField<K extends keyof typeof emptyForm>(key: K, value: string) {
+  function updateField<K extends keyof typeof emptyForm>(
+    key: K,
+    value: string,
+  ) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
@@ -464,11 +475,13 @@ export default function CctvPage() {
               Lengkapi informasi kamera di bawah ini.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-4">
             {formError && (
-              <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                <CircleAlert className="size-4 shrink-0" />
-                {formError}
+              <div className="flex min-w-0 items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                  {formError}
+                </span>
               </div>
             )}
             <div className="flex flex-col gap-2">
@@ -509,7 +522,11 @@ export default function CctvPage() {
               >
                 Batal
               </Button>
-              <Button type="submit" className="cursor-pointer" disabled={saving}>
+              <Button
+                type="submit"
+                className="cursor-pointer"
+                disabled={saving}
+              >
                 {editing ? "Simpan Perubahan" : "Tambah"}
               </Button>
             </DialogFooter>
