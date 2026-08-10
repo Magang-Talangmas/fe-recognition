@@ -5,9 +5,12 @@ import {
   Search,
   Download,
   CalendarCheck,
-  Pencil,
+Pencil,
   ClipboardCheck,
   Camera,
+  Check,
+  X,
+  ImageOff,
   CircleAlert,
 } from "lucide-react";
 
@@ -58,6 +61,9 @@ type DailyAttendanceItem = {
     id: string;
     type: string;
     status: string;
+    reason?: string | null;
+    photo?: string | null;
+    photoUrl?: string | null;
   } | null;
 };
 
@@ -89,7 +95,26 @@ type IzinForm = {
   photo: File | null;
 };
 
+type PermissionDetail = {
+  id: string;
+  type: string;
+  status: string;
+  reason?: string | null;
+  photo?: string | null;
+  photoUrl?: string | null;
+};
+
 const izinTypes = ["Sakit", "Izin", "Cuti", "Lainnya"];
+
+function permissionStatusLabel(status: string): string {
+  if (status === "APPROVED") return "Disetujui";
+  if (status === "REJECTED") return "Ditolak";
+  return "Menunggu";
+}
+
+function isPermissionPending(status: string): boolean {
+  return status !== "APPROVED" && status !== "REJECTED";
+}
 
 function isCheckInPhoto(url: string | null): boolean {
   if (!url) return false;
@@ -131,6 +156,10 @@ export default function AttendancePage() {
   const [izinSaving, setIzinSaving] = useState(false);
   const [izinError, setIzinError] = useState("");
   const [previewItem, setPreviewItem] = useState<DailyAttendanceItem | null>(null);
+  const [permissionItem, setPermissionItem] =
+    useState<DailyAttendanceItem | null>(null);
+  const [reviewPhotoFailed, setReviewPhotoFailed] = useState(false);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
   const PAGE_SIZE = 10;
 
   useEffect(() => {
@@ -235,6 +264,39 @@ export default function AttendancePage() {
     setIzinOpen(true);
   }
 
+  function openPermissionDetail(item: DailyAttendanceItem) {
+    setPermissionItem(item);
+    setReviewPhotoFailed(false);
+    if (!item.permission) return;
+    apiFetch<PermissionDetail>(
+      `/v1/attendance/permissions/${item.permission.id}`,
+    )
+      .then((detail) => {
+        setPermissionItem((prev) => {
+          if (!prev?.permission) return prev;
+          return {
+            ...prev,
+            permission: {
+              ...prev.permission,
+              ...detail,
+              photo:
+                detail.photo ??
+                detail.photoUrl ??
+                prev.permission.photo ??
+                null,
+              reason:
+                detail.reason ??
+                prev.permission.reason ??
+                "Tidak ada keterangan",
+            },
+          };
+        });
+      })
+      .catch((err) => {
+        console.error("Gagal mengambil detail perizinan:", err);
+      });
+  }
+
   async function submitIzin(e: React.FormEvent) {
     e.preventDefault();
     if (!izinForm) return;
@@ -261,6 +323,50 @@ export default function AttendancePage() {
       setIzinError(err instanceof Error ? err.message : "Gagal mengajukan izin");
     } finally {
       setIzinSaving(false);
+    }
+  }
+
+  async function reviewPermission(
+    item: DailyAttendanceItem,
+    status: "APPROVED" | "REJECTED",
+  ) {
+    const permission = item.permission;
+    if (!permission) return;
+    setReviewingId(permission.id);
+    try {
+      await apiFetch(`/v1/attendance/permissions/${permission.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setDaily((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((i) =>
+                i.id === item.id && i.permission
+                  ? { ...i, permission: { ...i.permission, status } }
+                  : i,
+              ),
+            }
+          : prev,
+      );
+      setPermissionItem((prev) =>
+        prev && prev.id === item.id && prev.permission
+          ? { ...prev, permission: { ...prev.permission, status } }
+          : prev,
+      );
+      toast.success(
+        `Perizinan ${item.name} ${
+          status === "APPROVED" ? "disetujui" : "ditolak"
+        }`,
+      );
+    } catch (err) {
+      console.error("Gagal memproses perizinan:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Gagal memproses perizinan",
+      );
+    } finally {
+      setReviewingId(null);
     }
   }
 
@@ -427,17 +533,25 @@ export default function AttendancePage() {
                     </TableCell>
                     <TableCell>
                       {item.permission ? (
-                        <Badge
-                          variant={
-                            item.permission.status === "APPROVED"
-                              ? "secondary"
-                              : item.permission.status === "REJECTED"
-                                ? "destructive"
-                                : "outline"
-                          }
+                        <button
+                          type="button"
+                          className="cursor-pointer"
+                          title="Lihat detail perizinan"
+                          onClick={() => openPermissionDetail(item)}
                         >
-                          {item.permission.type} · {item.permission.status}
-                        </Badge>
+                          <Badge
+                            variant={
+                              item.permission.status === "APPROVED"
+                                ? "secondary"
+                                : item.permission.status === "REJECTED"
+                                  ? "destructive"
+                                  : "outline"
+                            }
+                          >
+                            {item.permission.type} ·{" "}
+                            {permissionStatusLabel(item.permission.status)}
+                          </Badge>
+                        </button>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
@@ -643,6 +757,99 @@ export default function AttendancePage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={!!permissionItem}
+        onOpenChange={() => setPermissionItem(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Detail Perizinan</DialogTitle>
+            <DialogDescription>
+              Perizinan {permissionItem?.name} ({permissionItem?.employeeId}) —{" "}
+              {daily?.date ?? date}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label>Kategori</Label>
+              <div className="flex items-center rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm font-medium">
+                {permissionItem?.permission?.type ?? "—"}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Alasan Izin</Label>
+              <p className="min-h-20 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
+                {permissionItem?.permission?.reason || "Tidak ada keterangan"}
+              </p>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label>Bukti Foto</Label>
+              {(() => {
+                const photo =
+                  permissionItem?.permission?.photo ??
+                  permissionItem?.permission?.photoUrl ??
+                  (permissionItem?.photo &&
+                  isCheckInPhoto(permissionItem.photo)
+                    ? permissionItem.photo
+                    : null);
+                if (!photo) {
+                  return (
+                    <div className="flex h-36 w-full items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
+                      Tidak ada foto
+                    </div>
+                  );
+                }
+                if (reviewPhotoFailed) {
+                  return (
+                    <div className="flex h-36 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
+                      <ImageOff className="size-6" />
+                      Foto tidak tersedia
+                    </div>
+                  );
+                }
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={photo}
+                    alt="Bukti foto izin"
+                    className="max-h-72 w-full rounded-lg border border-border object-cover"
+                    onError={() => setReviewPhotoFailed(true)}
+                  />
+                );
+              })()}
+            </div>
+          </div>
+          <DialogFooter>
+            {permissionItem?.permission &&
+              isPermissionPending(permissionItem.permission.status) && (
+                <>
+                  <Button
+                    className="cursor-pointer"
+                    disabled={reviewingId === permissionItem.permission.id}
+                    onClick={() =>
+                      reviewPermission(permissionItem, "APPROVED")
+                    }
+                  >
+                    <Check />
+                    Setujui
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="cursor-pointer"
+                    disabled={reviewingId === permissionItem.permission.id}
+                    onClick={() =>
+                      reviewPermission(permissionItem, "REJECTED")
+                    }
+                  >
+                    <X />
+                    Tolak
+                  </Button>
+                </>
+              )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={!!previewItem} onOpenChange={() => setPreviewItem(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -663,8 +870,10 @@ export default function AttendancePage() {
             )}
             <div className="flex items-center gap-2 text-sm">
               <Badge variant="outline">{previewItem?.permission?.type ?? "Hadir"}</Badge>
-              <Badge variant={previewItem?.permission?.status === "APPROVED" ? "secondary" : "outline"}>
-                {previewItem?.permission?.status ?? "—"}
+              <Badge variant={previewItem?.permission?.status === "APPROVED" ? "secondary" : previewItem?.permission?.status === "REJECTED" ? "destructive" : "outline"}>
+                {previewItem?.permission?.status
+                  ? permissionStatusLabel(previewItem.permission.status)
+                  : "—"}
               </Badge>
             </div>
           </div>
