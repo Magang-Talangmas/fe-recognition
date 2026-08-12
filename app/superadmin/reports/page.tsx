@@ -21,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -46,6 +45,7 @@ type ReportRow = {
   present: number;
   late: number;
   absent: number;
+  permission: number;
   unknown: number;
 };
 
@@ -155,6 +155,7 @@ export default function ReportsPage() {
       "Hadir",
       "Terlambat",
       "Absen",
+      "Izin",
       "Tidak Dikenal",
     ];
     const data = rows.map((r) => [
@@ -163,6 +164,7 @@ export default function ReportsPage() {
       r.present,
       r.late,
       r.absent,
+      r.permission,
       r.unknown,
     ]);
     const csv = [headers, ...data]
@@ -283,6 +285,7 @@ export default function ReportsPage() {
               <TableHead>Hadir</TableHead>
               <TableHead>Terlambat</TableHead>
               <TableHead>Absen</TableHead>
+              <TableHead>Izin</TableHead>
               <TableHead>Tidak Dikenal</TableHead>
             </TableRow>
           </TableHeader>
@@ -290,7 +293,7 @@ export default function ReportsPage() {
             {loading && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="py-12 text-center text-muted-foreground"
                 >
                   <span className="flex items-center justify-center gap-2">
@@ -303,7 +306,7 @@ export default function ReportsPage() {
             {!loading && rows.length === 0 && (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="py-12 text-center text-muted-foreground"
                 >
                   Tidak ada data untuk laporan ini.
@@ -322,14 +325,9 @@ export default function ReportsPage() {
                     {r.label}
                   </TableCell>
                   <TableCell>{r.present}</TableCell>
-                  <TableCell>
-                    {r.late > 0 ? (
-                      <Badge variant="outline">{r.late}</Badge>
-                    ) : (
-                      r.late
-                    )}
-                  </TableCell>
+                  <TableCell>{r.late}</TableCell>
                   <TableCell>{r.absent}</TableCell>
+                  <TableCell>{r.permission}</TableCell>
                   <TableCell>{r.unknown}</TableCell>
                 </TableRow>
               ))}

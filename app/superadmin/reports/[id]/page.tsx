@@ -5,7 +5,6 @@ import Link from "next/link";
 import { ArrowLeft, Users, Loader2, CircleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -24,6 +23,7 @@ type ReportRow = {
   present: number;
   late: number;
   absent: number;
+  permission: number;
   unknown: number;
 };
 
@@ -136,13 +136,14 @@ export default function EmployeeReportPage() {
                 <TableHead className="text-right">Hadir</TableHead>
                 <TableHead className="text-right">Terlambat</TableHead>
                 <TableHead className="text-right">Absen</TableHead>
+                <TableHead className="text-right">Izin</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="py-12 text-center text-muted-foreground"
                   >
                     Tidak ada data karyawan.
@@ -155,14 +156,9 @@ export default function EmployeeReportPage() {
                     <span className="font-medium">{stripCode(r.label)}</span>
                   </TableCell>
                   <TableCell className="text-right">{r.present}</TableCell>
-                  <TableCell className="text-right">
-                    {r.late > 0 ? (
-                      <Badge variant="outline">{r.late}</Badge>
-                    ) : (
-                      r.late
-                    )}
-                  </TableCell>
+                  <TableCell className="text-right">{r.late}</TableCell>
                   <TableCell className="text-right">{r.absent}</TableCell>
+                  <TableCell className="text-right">{r.permission}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
