@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, CircleAlert } from "lucide-react";
+import { ArrowLeft, Users, CircleAlert, Download } from "lucide-react";
+import * as XLSX from "xlsx-js-style";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -87,6 +88,48 @@ export default function EmployeeReportPage() {
     };
   }, [pageToUse]);
 
+  function handleExport() {
+    const headers = [
+      "Karyawan",
+      "Hadir",
+      "Terlambat",
+      "Absen",
+      "Izin",
+    ];
+    const data = rows.map((r) => [
+      stripCode(r.label),
+      r.present,
+      r.late,
+      r.absent,
+      r.permission,
+    ]);
+
+    const aoa = [headers, ...data];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [
+      { wch: 22 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 10 },
+    ];
+
+    const headerCell = {
+      font: { bold: true, color: { rgb: "FFFFFF" } },
+      fill: { fgColor: { rgb: "2563EB" } },
+      alignment: { horizontal: "center" as const, vertical: "center" as const },
+    };
+    const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      ws[addr] = { ...ws[addr], ...headerCell };
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan Karyawan");
+    XLSX.writeFile(wb, "laporan-karyawan.xlsx");
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -102,6 +145,10 @@ export default function EmployeeReportPage() {
         >
           <ArrowLeft />
           Kembali
+        </Button>
+        <Button className="cursor-pointer" onClick={handleExport}>
+          <Download />
+          Ekspor Excel
         </Button>
       </PageHeader>
 
