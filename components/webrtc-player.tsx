@@ -5,6 +5,7 @@ import { Loader2, VideoOff } from "lucide-react";
 
 type WebRtcPlayerProps = {
   whepUrl: string;
+  fallbackSrc?: string;
   stunServer?: string;
   muted?: boolean;
   className?: string;
@@ -12,11 +13,13 @@ type WebRtcPlayerProps = {
 };
 
 const DEFAULT_STUN = "stun:stun.l.google.com:19302";
-const RETRY_MS = 3000;
-const MAX_ATTEMPTS = 3;
+const RETRY_MS = 1500;
+const MAX_ATTEMPTS = 2;
+const CONNECT_TIMEOUT_MS = 5000;
 
 export function WebRtcPlayer({
   whepUrl,
+  fallbackSrc,
   stunServer = DEFAULT_STUN,
   muted = true,
   className,
@@ -24,6 +27,7 @@ export function WebRtcPlayer({
 }: WebRtcPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const onFailRef = useRef(onFail);
+  const connectedRef = useRef(false);
   const [attempt, setAttempt] = useState(0);
   const [connected, setConnected] = useState(false);
 
@@ -47,8 +51,11 @@ export function WebRtcPlayer({
     });
     pc.addTransceiver("video", { direction: "recvonly" });
 
+    connectedRef.current = false;
+
     let disposed = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
     let resourceUrl: string | null = null;
 
     const retryOrFail = () => {
@@ -62,7 +69,16 @@ export function WebRtcPlayer({
       }, RETRY_MS);
     };
 
+    connectTimer = setTimeout(() => {
+      if (!disposed && !connectedRef.current) {
+        setConnected(false);
+        retryOrFail();
+      }
+    }, CONNECT_TIMEOUT_MS);
+
     pc.ontrack = (ev) => {
+      connectedRef.current = true;
+      if (connectTimer) clearTimeout(connectTimer);
       if (videoRef.current && ev.streams?.[0]) {
         videoRef.current.srcObject = ev.streams[0];
         videoRef.current.play().catch(() => {});
@@ -86,6 +102,7 @@ export function WebRtcPlayer({
         pc.connectionState === "disconnected" ||
         pc.connectionState === "failed"
       ) {
+        connectedRef.current = false;
         setConnected(false);
         retryOrFail();
       }
@@ -122,6 +139,7 @@ export function WebRtcPlayer({
     function cleanup() {
       disposed = true;
       if (retryTimer) clearTimeout(retryTimer);
+      if (connectTimer) clearTimeout(connectTimer);
       pc.close();
       if (videoRef.current) {
         videoRef.current.srcObject = null;
@@ -134,6 +152,17 @@ export function WebRtcPlayer({
 
   return (
     <div className="relative flex h-full w-full items-center justify-center bg-zinc-900">
+      {fallbackSrc && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={fallbackSrc}
+          alt="Live CCTV"
+          loading="lazy"
+          className={`h-full w-full object-cover ${className ?? ""} ${
+            status === "connected" ? "hidden" : ""
+          }`}
+        />
+      )}
       <video
         ref={videoRef}
         autoPlay
@@ -143,13 +172,15 @@ export function WebRtcPlayer({
           status === "connected" ? "" : "hidden"
         }`}
       />
-      {status === "connecting" && (
+      {!fallbackSrc && status === "connecting" && (
         <div className="flex flex-col items-center gap-2 text-zinc-400">
           <Loader2 className="size-6 animate-spin" />
           <span className="text-xs">Menghubungkan...</span>
         </div>
       )}
-      {status === "failed" && <VideoOff className="size-10 text-zinc-600" />}
+      {!fallbackSrc && status === "failed" && (
+        <VideoOff className="size-10 text-zinc-600" />
+      )}
     </div>
   );
 }

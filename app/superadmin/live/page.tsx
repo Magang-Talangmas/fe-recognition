@@ -66,7 +66,6 @@ export default function LiveMonitoringPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [failedFeeds, setFailedFeeds] = useState<Set<string>>(new Set());
-  const [rtcFailed, setRtcFailed] = useState<Set<string>>(new Set());
   const realtimeStatus = useRealtimeStatus();
   const unknownRefetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,14 +114,6 @@ export default function LiveMonitoringPage() {
     setFeeds((prev) =>
       prev.map((f) => (f.id === cameraId ? { ...f, online } : f))
     );
-  }
-
-  function markRtcFailed(cameraId: string) {
-    setRtcFailed((prev) => {
-      const next = new Set(prev);
-      next.add(cameraId);
-      return next;
-    });
   }
 
   useEffect(() => {
@@ -228,12 +219,13 @@ export default function LiveMonitoringPage() {
                   <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                     {f.online ? (
                       <>
-                        {f.whepUrl && !rtcFailed.has(f.id) ? (
+                        {f.whepUrl &&
+                        !(f.streamUrl && f.streamUrl.startsWith("http")) ? (
                           <>
                             <WebRtcPlayer
                               whepUrl={f.whepUrl}
+                              fallbackSrc={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
                               className="absolute inset-0 h-full w-full"
-                              onFail={() => markRtcFailed(f.id)}
                             />
                             <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
                               <span className="size-1.5 animate-pulse rounded-full bg-white" />
