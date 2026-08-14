@@ -19,6 +19,7 @@ import {
 } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
+import { WebRtcPlayer } from "@/components/webrtc-player";
 import { useRealtime, useRealtimeStatus } from "@/lib/realtime";
 import { API_URL, apiFetch } from "@/lib/api";
 
@@ -30,6 +31,7 @@ type Feed = {
   rtspUrl: string | null;
   snapshotUrl: string | null;
   streamUrl: string | null;
+  whepUrl: string | null;
 };
 
 type Recognition = {
@@ -64,6 +66,7 @@ export default function LiveMonitoringPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [failedFeeds, setFailedFeeds] = useState<Set<string>>(new Set());
+  const [rtcFailed, setRtcFailed] = useState<Set<string>>(new Set());
   const realtimeStatus = useRealtimeStatus();
   const unknownRefetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,6 +115,14 @@ export default function LiveMonitoringPage() {
     setFeeds((prev) =>
       prev.map((f) => (f.id === cameraId ? { ...f, online } : f))
     );
+  }
+
+  function markRtcFailed(cameraId: string) {
+    setRtcFailed((prev) => {
+      const next = new Set(prev);
+      next.add(cameraId);
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -217,31 +228,12 @@ export default function LiveMonitoringPage() {
                   <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                     {f.online ? (
                       <>
-                        {f.streamUrl && f.streamUrl.startsWith("http") ? (
-                          <iframe
-                            src={f.streamUrl}
-                            title={`Live CCTV ${f.name}`}
-                            className="absolute inset-0 h-full w-full border-0"
-                            allow="autoplay"
-                            allowFullScreen
-                          />
-                        ) : failedFeeds.has(f.id) ? (
-                          <VideoOff className="size-10 text-zinc-600" />
-                        ) : (
+                        {f.whepUrl && !rtcFailed.has(f.id) ? (
                           <>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
-                              alt={`Live CCTV ${f.name}`}
-                              className="absolute inset-0 h-full w-full object-cover"
-                              loading="lazy"
-                              onError={() =>
-                                setFailedFeeds((prev) => {
-                                  const next = new Set(prev);
-                                  next.add(f.id);
-                                  return next;
-                                })
-                              }
+                            <WebRtcPlayer
+                              whepUrl={f.whepUrl}
+                              className="absolute inset-0 h-full w-full"
+                              onFail={() => markRtcFailed(f.id)}
                             />
                             <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
                               <span className="size-1.5 animate-pulse rounded-full bg-white" />
@@ -250,6 +242,44 @@ export default function LiveMonitoringPage() {
                             <span className="absolute bottom-3 right-3 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-zinc-300">
                               {f.id}
                             </span>
+                          </>
+                        ) : (
+                          <>
+                            {f.streamUrl && f.streamUrl.startsWith("http") ? (
+                              <iframe
+                                src={f.streamUrl}
+                                title={`Live CCTV ${f.name}`}
+                                className="absolute inset-0 h-full w-full border-0"
+                                allow="autoplay"
+                                allowFullScreen
+                              />
+                            ) : failedFeeds.has(f.id) ? (
+                              <VideoOff className="size-10 text-zinc-600" />
+                            ) : (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
+                                  alt={`Live CCTV ${f.name}`}
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                  loading="lazy"
+                                  onError={() =>
+                                    setFailedFeeds((prev) => {
+                                      const next = new Set(prev);
+                                      next.add(f.id);
+                                      return next;
+                                    })
+                                  }
+                                />
+                                <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
+                                  <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                                  LIVE
+                                </span>
+                                <span className="absolute bottom-3 right-3 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                                  {f.id}
+                                </span>
+                              </>
+                            )}
                           </>
                         )}
                       </>
