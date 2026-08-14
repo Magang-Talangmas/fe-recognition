@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/stat-card";
 import { LoadingState } from "@/components/loading-state";
+import { useRealtime } from "@/lib/realtime";
 import { apiFetch, API_URL } from "@/lib/api";
 
 type Summary = {
@@ -116,6 +117,7 @@ export default function DashboardPage() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -139,7 +141,12 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [reloadKey]);
+
+  useRealtime(
+    ["recognition", "unknown", "checkin", "camera_online", "camera_offline"],
+    () => setReloadKey((k) => k + 1)
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -203,13 +210,23 @@ export default function DashboardPage() {
                   >
                     <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                       {f.online && (f.streamUrl || f.snapshotUrl) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
-                          alt={`Live CCTV ${f.name}`}
-                          className="absolute inset-0 h-full w-full object-cover"
-                          loading="lazy"
-                        />
+                        f.streamUrl && f.streamUrl.startsWith("http") ? (
+                          <iframe
+                            src={f.streamUrl}
+                            title={`Live CCTV ${f.name}`}
+                            className="absolute inset-0 h-full w-full border-0"
+                            allow="autoplay"
+                            allowFullScreen
+                          />
+                        ) : (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
+                            alt={`Live CCTV ${f.name}`}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        )
                       ) : (
                         <VideoOff className="size-6 text-zinc-600" />
                       )}

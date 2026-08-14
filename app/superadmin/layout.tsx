@@ -1,6 +1,7 @@
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { NotificationBell } from "@/components/notification-bell";
+import { RealtimeProvider } from "@/components/realtime-provider";
 import { Button } from "@/components/ui/button";
 import {
   SidebarInset,
@@ -52,7 +53,9 @@ export default function DashboardLayout({
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6">{children}</main>
+        <main className="flex-1 overflow-y-auto p-6">
+          <RealtimeProvider>{children}</RealtimeProvider>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   );

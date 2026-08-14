@@ -19,6 +19,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableState } from "@/components/table-state";
 import { LoadingState } from "@/components/loading-state";
 import { apiFetch } from "@/lib/api";
+import { useRealtime } from "@/lib/realtime";
 
 type ReportRow = {
   code: string;
@@ -49,6 +50,7 @@ export default function EmployeeReportPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+  const [reloadKey, setReloadKey] = useState(0);
   const PAGE_SIZE = 10;
 
   const pageToUse = Math.min(page, totalPages);
@@ -86,7 +88,11 @@ export default function EmployeeReportPage() {
     return () => {
       active = false;
     };
-  }, [pageToUse]);
+  }, [pageToUse, reloadKey]);
+
+  useRealtime(["checkin", "unknown", "recognition"], () =>
+    setReloadKey((k) => k + 1)
+  );
 
   function handleExport() {
     const headers = [

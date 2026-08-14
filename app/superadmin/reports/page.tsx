@@ -33,6 +33,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { StatCard } from "@/components/stat-card";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
+import { useRealtime } from "@/lib/realtime";
 
 type ReportRow = {
   code: string;
@@ -142,6 +143,8 @@ export default function ReportsPage() {
   function refresh() {
     setReloadKey((k) => k + 1);
   }
+
+  useRealtime(["checkin", "unknown", "recognition"], refresh);
 
   function handleExport() {
     const headers = [

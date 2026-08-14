@@ -14,13 +14,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  pushNotification,
   seedNotifications,
   type Notification,
 } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
-import { API_URL, apiFetch, getToken } from "@/lib/api";
+import { useRealtime, useRealtimeStatus } from "@/lib/realtime";
+import { API_URL, apiFetch } from "@/lib/api";
 
 type Feed = {
   id: string;
@@ -63,9 +63,8 @@ export default function LiveMonitoringPage() {
   const [loadingRec, setLoadingRec] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [sseConnected, setSseConnected] = useState(false);
   const [failedFeeds, setFailedFeeds] = useState<Set<string>>(new Set());
-  const esRef = useRef<EventSource | null>(null);
+  const realtimeStatus = useRealtimeStatus();
   const unknownRefetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onlineCount = feeds.filter((f) => f.online).length;
@@ -126,120 +125,27 @@ export default function LiveMonitoringPage() {
     load();
   }, [loadFeeds, loadRecognitions, loadNotifications]);
 
-  useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-    const es = new EventSource(
-      `${API_URL}/v1/live/events?token=${encodeURIComponent(token)}`
-    );
-    esRef.current = es;
+  useRealtime(["recognition"], (_event, data) => {
+    prependRecognition(data as Recognition);
+  });
 
-    es.onopen = () => setSseConnected(true);
-    es.onerror = () => setSseConnected(false);
+  useRealtime(["unknown"], (_event, data) => {
+    prependRecognition({ ...(data as Recognition), status: "Unknown" });
+    if (unknownRefetchRef.current) {
+      clearTimeout(unknownRefetchRef.current);
+    }
+    unknownRefetchRef.current = setTimeout(() => {
+      loadRecognitions();
+    }, 1500);
+  });
 
-    es.addEventListener("recognition", (e) => {
-      try {
-        const d = JSON.parse(e.data) as Recognition;
-        prependRecognition(d);
-        pushNotification({
-          type: "recognition",
-          title: "Pengenalan Berhasil",
-          description: `${d.name ?? d.employeeId ?? "Karyawan"} diverifikasi di ${
-            d.cameraName ?? d.cameraId
-          } (confidence ${d.confidence.toFixed(1)}%).`,
-        });
-      } catch (err) {
-        console.error("Gagal memproses event recognition:", err);
-      }
-    });
+  useRealtime(["camera_online"], (_event, data) => {
+    setFeedOnline((data as { cameraId: string }).cameraId, true);
+  });
 
-    es.addEventListener("unknown", (e) => {
-      try {
-        const d = JSON.parse(e.data) as Recognition;
-        prependRecognition({ ...d, status: "Unknown" });
-        pushNotification({
-          type: "unknown",
-          title: "Wajah Tidak Dikenal",
-          description: `${d.name ?? d.employeeId ?? "Wajah unknown"} terdeteksi di ${
-            d.cameraName ?? d.cameraId
-          } (confidence ${d.confidence.toFixed(1)}%).`,
-        });
-        if (unknownRefetchRef.current) {
-          clearTimeout(unknownRefetchRef.current);
-        }
-        unknownRefetchRef.current = setTimeout(() => {
-          loadRecognitions();
-        }, 1500);
-      } catch (err) {
-        console.error("Gagal memproses event unknown:", err);
-      }
-    });
-
-    es.addEventListener("camera_online", (e) => {
-      try {
-        const d = JSON.parse(e.data) as { cameraId: string; name: string };
-        setFeedOnline(d.cameraId, true);
-        pushNotification({
-          type: "cctv",
-          title: "CCTV Kembali Online",
-          description: `${d.name} kembali terhubung setelah gangguan.`,
-        });
-      } catch (err) {
-        console.error("Gagal memproses event camera_online:", err);
-      }
-    });
-
-    es.addEventListener("camera_offline", (e) => {
-      try {
-        const d = JSON.parse(e.data) as {
-          cameraId: string;
-          name: string;
-          since: string;
-        };
-        setFeedOnline(d.cameraId, false);
-        pushNotification({
-          type: "cctv",
-          title: "CCTV Offline",
-          description: `${d.name} tidak merespons sejak ${new Date(
-            d.since
-          ).toLocaleString("id-ID")}.`,
-        });
-      } catch (err) {
-        console.error("Gagal memproses event camera_offline:", err);
-      }
-    });
-
-    es.addEventListener("checkin", (e) => {
-      try {
-        const d = JSON.parse(e.data) as {
-          employeeId: string;
-          name: string;
-          type: string;
-          isLate: boolean;
-          time: string;
-        };
-        pushNotification({
-          type: "checkin",
-          title: d.isLate ? "Terlambat Masuk" : "Check In",
-          description: `${d.name} ${d.type === "CHECK_OUT" ? "check-out" : "check-in"} pukul ${d.time}${
-            d.isLate ? " (terlambat)" : ""
-          }.`,
-        });
-      } catch (err) {
-        console.error("Gagal memproses event checkin:", err);
-      }
-    });
-
-    return () => {
-      es.close();
-      esRef.current = null;
-      if (unknownRefetchRef.current) {
-        clearTimeout(unknownRefetchRef.current);
-        unknownRefetchRef.current = null;
-      }
-      setSseConnected(false);
-    };
-  }, [loadRecognitions]);
+  useRealtime(["camera_offline"], (_event, data) => {
+    setFeedOnline((data as { cameraId: string }).cameraId, false);
+  });
 
   async function refresh() {
     setRefreshing(true);
@@ -255,17 +161,21 @@ export default function LiveMonitoringPage() {
         icon={<MonitorPlay className="size-6" />}
       >
         <Badge
-          variant={sseConnected ? "secondary" : "outline"}
+          variant={realtimeStatus === "connected" ? "secondary" : "outline"}
           className="h-8"
         >
           <span
             className={`size-1.5 rounded-full ${
-              sseConnected
+              realtimeStatus === "connected"
                 ? "bg-green-500 animate-pulse"
                 : "bg-zinc-400"
             }`}
           />
-          {sseConnected ? "Live" : "Terputus"}
+          {realtimeStatus === "connected"
+            ? "Live"
+            : realtimeStatus === "connecting"
+              ? "Menghubungkan..."
+              : "Terputus"}
         </Badge>
         <Button
           className="cursor-pointer"
@@ -307,7 +217,15 @@ export default function LiveMonitoringPage() {
                   <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                     {f.online ? (
                       <>
-                        {failedFeeds.has(f.id) ? (
+                        {f.streamUrl && f.streamUrl.startsWith("http") ? (
+                          <iframe
+                            src={f.streamUrl}
+                            title={`Live CCTV ${f.name}`}
+                            className="absolute inset-0 h-full w-full border-0"
+                            allow="autoplay"
+                            allowFullScreen
+                          />
+                        ) : failedFeeds.has(f.id) ? (
                           <VideoOff className="size-10 text-zinc-600" />
                         ) : (
                           <>

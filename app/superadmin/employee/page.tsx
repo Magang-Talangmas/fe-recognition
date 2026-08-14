@@ -45,6 +45,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
+import { useRealtime } from "@/lib/realtime";
 import { toast } from "sonner";
 
 type Employee = {
@@ -169,6 +170,11 @@ export default function EmployeePage() {
   function refresh() {
     setReloadKey((k) => k + 1);
   }
+
+  useRealtime(
+    ["recognition", "checkin", "unknown", "camera_online", "camera_offline"],
+    refresh
+  );
 
   function openAdd() {
     setEditing(null);

@@ -39,6 +39,7 @@ import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
+import { useRealtime } from "@/lib/realtime";
 import { toast } from "sonner";
 import * as XLSX from "xlsx-js-style";
 
@@ -147,6 +148,7 @@ export default function AttendancePage() {
   const [search, setSearch] = useState("");
   const [date, setDate] = useState(todayLocal());
   const [page, setPage] = useState(1);
+  const [reloadKey, setReloadKey] = useState(0);
   const [editing, setEditing] = useState<EditForm | null>(null);
   const [overrides, setOverrides] = useState<Record<string, Override>>({});
   const [izinOpen, setIzinOpen] = useState(false);
@@ -181,7 +183,9 @@ export default function AttendancePage() {
     return () => {
       active = false;
     };
-  }, [date]);
+  }, [date, reloadKey]);
+
+  useRealtime(["checkin", "recognition"], () => setReloadKey((k) => k + 1));
 
   const items = useMemo(() => {
     const q = search.toLowerCase();
