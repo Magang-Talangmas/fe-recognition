@@ -21,6 +21,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { LoadingState } from "@/components/loading-state";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -158,9 +159,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {loading ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                Memuat pengaturan...
-              </div>
+              <LoadingState message="Memuat pengaturan..." />
             ) : (
               <>
                 <ToggleRow

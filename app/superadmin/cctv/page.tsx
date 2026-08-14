@@ -47,6 +47,8 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
+import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -345,26 +347,13 @@ export default function CctvPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Memuat data CCTV...
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading && cctvs.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Tidak ada data kamera.
-                </TableCell>
-              </TableRow>
-            )}
+            <TableState
+              loading={loading}
+              empty={cctvs.length === 0}
+              colSpan={5}
+              loadingText="Memuat data CCTV..."
+              emptyText="Tidak ada data kamera."
+            />
             {!loading &&
               cctvs.map((c) => (
                 <TableRow key={c.id}>
@@ -534,37 +523,13 @@ export default function CctvPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Hapus Kamera?</DialogTitle>
-            <DialogDescription>
-              Kamera{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>{" "}
-              akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              className="cursor-pointer"
-              onClick={() => setDeleteTarget(null)}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
-              className="cursor-pointer"
-              onClick={confirmDelete}
-            >
-              <Trash2 />
-              Hapus
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        noun="Kamera"
+        name={deleteTarget?.name ?? ""}
+        onConfirm={confirmDelete}
+      />
 
       <Dialog open={!!syncResult} onOpenChange={() => setSyncResult(null)}>
         <DialogContent className="max-w-md">

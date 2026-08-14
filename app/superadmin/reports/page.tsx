@@ -9,18 +9,11 @@ import {
   UserCheck,
   Clock4,
   UserX,
-  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -37,6 +30,8 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { StatCard } from "@/components/stat-card";
+import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 
 type ReportRow = {
@@ -290,29 +285,13 @@ export default function ReportsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <Loader2 className="size-4 animate-spin" />
-                    Memuat laporan...
-                  </span>
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading && rows.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Tidak ada data untuk laporan ini.
-                </TableCell>
-              </TableRow>
-            )}
+            <TableState
+              loading={loading}
+              empty={rows.length === 0}
+              colSpan={7}
+              loadingText="Memuat laporan..."
+              emptyText="Tidak ada data untuk laporan ini."
+            />
             {!loading &&
               rows.map((r) => (
                 <TableRow
@@ -334,43 +313,16 @@ export default function ReportsPage() {
           </TableBody>
         </Table>
 
-        <DataTablePagination
-          page={pageToUse}
-          pageCount={totalPages}
-          total={total}
-          start={start}
-          end={end}
-          itemLabel="baris"
-          onPageChange={setPage}
-        />
+          <DataTablePagination
+            page={pageToUse}
+            pageCount={totalPages}
+            total={total}
+            start={start}
+            end={end}
+            itemLabel="baris"
+            onPageChange={setPage}
+          />
       </div>
     </div>
-  );
-}
-
-type StatProps = {
-  icon: React.ReactNode;
-  tone: string;
-  label: string;
-  value: number;
-};
-
-function StatCard({ icon, tone, label, value }: StatProps) {
-  return (
-    <Card className="rounded-lg">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm text-muted-foreground">
-          {label}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex items-center gap-3">
-        <div
-          className={`flex size-9 items-center justify-center rounded-md ${tone}`}
-        >
-          {icon}
-        </div>
-        <span className="text-2xl font-semibold">{value}</span>
-      </CardContent>
-    </Card>
   );
 }

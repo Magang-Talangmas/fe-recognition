@@ -35,6 +35,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
+import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -232,26 +234,13 @@ export default function SchedulePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Memuat jadwal kerja...
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading && schedules.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Belum ada jadwal kerja.
-                </TableCell>
-              </TableRow>
-            )}
+            <TableState
+              loading={loading}
+              empty={schedules.length === 0}
+              colSpan={7}
+              loadingText="Memuat jadwal kerja..."
+              emptyText="Belum ada jadwal kerja."
+            />
             {!loading &&
               schedules.map((s) => (
                 <TableRow key={s.id}>
@@ -458,37 +447,13 @@ export default function SchedulePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Hapus Jadwal?</DialogTitle>
-            <DialogDescription>
-              Jadwal{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>{" "}
-              akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              className="cursor-pointer"
-              onClick={() => setDeleteTarget(null)}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
-              className="cursor-pointer"
-              onClick={confirmDelete}
-            >
-              <Trash2 />
-              Hapus
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        noun="Jadwal"
+        name={deleteTarget?.name ?? ""}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

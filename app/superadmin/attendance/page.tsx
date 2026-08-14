@@ -5,7 +5,7 @@ import {
   Search,
   Download,
   CalendarCheck,
-Pencil,
+  Pencil,
   ClipboardCheck,
   Camera,
   Check,
@@ -34,12 +34,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Avatar,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 import * as XLSX from "xlsx-js-style";
@@ -155,7 +153,9 @@ export default function AttendancePage() {
   const [izinForm, setIzinForm] = useState<IzinForm | null>(null);
   const [izinSaving, setIzinSaving] = useState(false);
   const [izinError, setIzinError] = useState("");
-  const [previewItem, setPreviewItem] = useState<DailyAttendanceItem | null>(null);
+  const [previewItem, setPreviewItem] = useState<DailyAttendanceItem | null>(
+    null,
+  );
   const [permissionItem, setPermissionItem] =
     useState<DailyAttendanceItem | null>(null);
   const [reviewPhotoFailed, setReviewPhotoFailed] = useState(false);
@@ -320,7 +320,9 @@ export default function AttendancePage() {
       setIzinOpen(false);
     } catch (err) {
       console.error("Gagal mengajukan izin:", err);
-      setIzinError(err instanceof Error ? err.message : "Gagal mengajukan izin");
+      setIzinError(
+        err instanceof Error ? err.message : "Gagal mengajukan izin",
+      );
     } finally {
       setIzinSaving(false);
     }
@@ -485,26 +487,13 @@ export default function AttendancePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Memuat data kehadiran...
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading && items.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Tidak ada data kehadiran.
-                </TableCell>
-              </TableRow>
-            )}
+            <TableState
+              loading={loading}
+              empty={items.length === 0}
+              colSpan={8}
+              loadingText="Memuat data kehadiran..."
+              emptyText="Tidak ada data kehadiran."
+            />
             {!loading &&
               paged.map((item) => {
                 const { checkIn, checkOut, workingHours } = effective(item);
@@ -660,8 +649,8 @@ export default function AttendancePage() {
           <DialogHeader>
             <DialogTitle>Ajukan Izin</DialogTitle>
             <DialogDescription>
-              Ajukan izin untuk {izinForm?.employeeName} ({izinForm?.employeeId})
-              pada {izinForm?.date}.
+              Ajukan izin untuk {izinForm?.employeeName} ({izinForm?.employeeId}
+              ) pada {izinForm?.date}.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={submitIzin} className="flex flex-col gap-4">
@@ -732,7 +721,9 @@ export default function AttendancePage() {
                   className="hidden"
                   onChange={(e) => {
                     const f = e.target.files?.[0] ?? null;
-                    setIzinForm((prev) => (prev ? { ...prev, photo: f } : prev));
+                    setIzinForm((prev) =>
+                      prev ? { ...prev, photo: f } : prev,
+                    );
                   }}
                 />
               </label>
@@ -788,8 +779,7 @@ export default function AttendancePage() {
                 const photo =
                   permissionItem?.permission?.photo ??
                   permissionItem?.permission?.photoUrl ??
-                  (permissionItem?.photo &&
-                  isCheckInPhoto(permissionItem.photo)
+                  (permissionItem?.photo && isCheckInPhoto(permissionItem.photo)
                     ? permissionItem.photo
                     : null);
                 if (!photo) {
@@ -826,9 +816,7 @@ export default function AttendancePage() {
                   <Button
                     className="cursor-pointer"
                     disabled={reviewingId === permissionItem.permission.id}
-                    onClick={() =>
-                      reviewPermission(permissionItem, "APPROVED")
-                    }
+                    onClick={() => reviewPermission(permissionItem, "APPROVED")}
                   >
                     <Check />
                     Setujui
@@ -837,9 +825,7 @@ export default function AttendancePage() {
                     variant="destructive"
                     className="cursor-pointer"
                     disabled={reviewingId === permissionItem.permission.id}
-                    onClick={() =>
-                      reviewPermission(permissionItem, "REJECTED")
-                    }
+                    onClick={() => reviewPermission(permissionItem, "REJECTED")}
                   >
                     <X />
                     Tolak
@@ -869,8 +855,18 @@ export default function AttendancePage() {
               />
             )}
             <div className="flex items-center gap-2 text-sm">
-              <Badge variant="outline">{previewItem?.permission?.type ?? "Hadir"}</Badge>
-              <Badge variant={previewItem?.permission?.status === "APPROVED" ? "secondary" : previewItem?.permission?.status === "REJECTED" ? "destructive" : "outline"}>
+              <Badge variant="outline">
+                {previewItem?.permission?.type ?? "Hadir"}
+              </Badge>
+              <Badge
+                variant={
+                  previewItem?.permission?.status === "APPROVED"
+                    ? "secondary"
+                    : previewItem?.permission?.status === "REJECTED"
+                      ? "destructive"
+                      : "outline"
+                }
+              >
                 {previewItem?.permission?.status
                   ? permissionStatusLabel(previewItem.permission.status)
                   : "—"}

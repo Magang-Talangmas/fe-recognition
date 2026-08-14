@@ -42,6 +42,8 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
+import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -411,26 +413,13 @@ export default function EmployeePage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Memuat data karyawan...
-                </TableCell>
-              </TableRow>
-            )}
-            {!loading && (employees ?? []).length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="py-12 text-center text-muted-foreground"
-                >
-                  Tidak ada data karyawan.
-                </TableCell>
-              </TableRow>
-            )}
+            <TableState
+              loading={loading}
+              empty={(employees ?? []).length === 0}
+              colSpan={6}
+              loadingText="Memuat data karyawan..."
+              emptyText="Tidak ada data karyawan."
+            />
             {!loading &&
               (employees ?? []).map((emp) => (
                 <TableRow key={emp.id}>
@@ -710,37 +699,13 @@ export default function EmployeePage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Hapus Karyawan?</DialogTitle>
-            <DialogDescription>
-              Karyawan{" "}
-              <span className="font-medium text-foreground">
-                {deleteTarget?.name}
-              </span>{" "}
-              akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              className="cursor-pointer"
-              onClick={() => setDeleteTarget(null)}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="destructive"
-              className="cursor-pointer"
-              onClick={confirmDelete}
-            >
-              <Trash2 />
-              Hapus
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onOpenChange={() => setDeleteTarget(null)}
+        noun="Karyawan"
+        name={deleteTarget?.name ?? ""}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

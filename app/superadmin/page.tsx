@@ -6,7 +6,6 @@ import {
   Users,
   Clock,
   Coffee,
-  UserCircle,
   UserX,
   Video,
   VideoOff,
@@ -19,6 +18,8 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/stat-card";
+import { LoadingState } from "@/components/loading-state";
 import { apiFetch, API_URL } from "@/lib/api";
 
 type Summary = {
@@ -26,7 +27,6 @@ type Summary = {
   active: number;
   inactive: number;
   faceRegistered: number;
-  faceNotRegistered: number;
   presentToday: number;
   departments: number;
   recentActivity: number;
@@ -75,12 +75,6 @@ const statDefs = [
     tone: "text-teal-600 bg-teal-100 dark:text-teal-400 dark:bg-teal-500/15",
   },
   {
-    key: "faceNotRegistered",
-    label: "Face Belum",
-    icon: UserCircle,
-    tone: "text-purple-600 bg-purple-100 dark:text-purple-400 dark:bg-purple-500/15",
-  },
-  {
     key: "presentToday",
     label: "Hadir Hari Ini",
     icon: Coffee,
@@ -115,7 +109,6 @@ export default function DashboardPage() {
     active: 0,
     inactive: 0,
     faceRegistered: 0,
-    faceNotRegistered: 0,
     presentToday: 0,
     departments: 0,
     recentActivity: 0,
@@ -171,19 +164,13 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {statDefs.map((s) => (
-          <Card key={s.key} className="rounded-lg">
-            <CardContent className="flex items-center gap-4">
-              <div
-                className={`flex size-11 shrink-0 items-center justify-center rounded-md ${s.tone}`}
-              >
-                <s.icon className="size-5" />
-              </div>
-              <div className="flex flex-col leading-tight">
-                <span className="text-2xl font-semibold">{summary[s.key]}</span>
-                <span className="text-xs text-muted-foreground">{s.label}</span>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            key={s.key}
+            icon={<s.icon className="size-5" />}
+            tone={s.tone}
+            label={s.label}
+            value={summary[s.key]}
+          />
         ))}
       </div>
 
@@ -197,14 +184,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
             {loading ? (
-              <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
-                <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                  <Loader2 className="size-6 animate-spin" />
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Memuat feed kamera...
-                </p>
-              </div>
+              <LoadingState message="Memuat feed kamera..." />
             ) : feeds.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
                 <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">

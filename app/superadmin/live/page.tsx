@@ -19,6 +19,7 @@ import {
   type Notification,
 } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
+import { LoadingState } from "@/components/loading-state";
 import { API_URL, apiFetch, getToken } from "@/lib/api";
 
 type Feed = {
@@ -297,9 +298,7 @@ export default function LiveMonitoringPage() {
 
           {loadingFeeds ? (
             <Card className="rounded-lg">
-              <CardContent className="py-12 text-center text-sm text-muted-foreground">
-                Memuat feed kamera...
-              </CardContent>
+              <LoadingState message="Memuat feed kamera..." />
             </Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -371,11 +370,7 @@ export default function LiveMonitoringPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col divide-y">
-              {loadingRec && (
-                <div className="py-8 text-center text-sm text-muted-foreground">
-                  Memuat hasil pengenalan...
-                </div>
-              )}
+              {loadingRec && <LoadingState message="Memuat hasil pengenalan..." />}
               {!loadingRec && live.length === 0 && (
                 <div className="py-8 text-center text-sm text-muted-foreground">
                   Belum ada hasil pengenalan.

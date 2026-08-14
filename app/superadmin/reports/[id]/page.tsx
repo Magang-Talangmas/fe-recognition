@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Users, Loader2, CircleAlert } from "lucide-react";
+import { ArrowLeft, Users, CircleAlert } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/components/page-header";
 import { DataTablePagination } from "@/components/data-table-pagination";
+import { TableState } from "@/components/table-state";
+import { LoadingState } from "@/components/loading-state";
 import { apiFetch } from "@/lib/api";
 
 type ReportRow = {
@@ -103,14 +105,7 @@ export default function EmployeeReportPage() {
         </Button>
       </PageHeader>
 
-      {loading && (
-        <div className="py-12 text-center text-muted-foreground">
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 className="size-4 animate-spin" />
-            Memuat laporan karyawan...
-          </span>
-        </div>
-      )}
+      {loading && <LoadingState message="Memuat laporan karyawan..." />}
 
       {!loading && error && (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
@@ -140,16 +135,12 @@ export default function EmployeeReportPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={5}
-                    className="py-12 text-center text-muted-foreground"
-                  >
-                    Tidak ada data karyawan.
-                  </TableCell>
-                </TableRow>
-              )}
+              <TableState
+                loading={false}
+                empty={rows.length === 0}
+                colSpan={5}
+                emptyText="Tidak ada data karyawan."
+              />
               {rows.map((r) => (
                 <TableRow key={r.code}>
                   <TableCell>
