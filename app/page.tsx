@@ -65,7 +65,7 @@ export default function LoginPage() {
         </div>
 
         <CardContent className="relative flex min-h-[36rem] flex-col justify-center gap-8 p-8 sm:p-12">
-          <div className="absolute right-8 top-8">
+          <div className="absolute left-1/2 top-8 -translate-x-1/2 md:left-auto md:right-8 md:translate-x-0">
             <Image
               src="/images/logo-talangmas.png"
               alt="Logo Talangmas"

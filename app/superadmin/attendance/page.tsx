@@ -845,7 +845,7 @@ export default function AttendancePage() {
           <DialogHeader>
             <DialogTitle>Foto Kehadiran</DialogTitle>
             <DialogDescription>
-              Foto {previewItem?.name} ({previewItem?.employeeId}) —{" "}
+              Foto {previewItem?.name} —{" "}
               {daily?.date ?? date}.
             </DialogDescription>
           </DialogHeader>
