@@ -39,7 +39,7 @@ export function RealtimeProvider({
         pushNotification({
           type: "recognition",
           title: "Pengenalan Berhasil",
-          description: `${d.name ?? d.employeeId ?? "Karyawan"} diverifikasi di ${
+          description: `${d.name ?? "Karyawan"} diverifikasi di ${
             d.cameraName ?? d.cameraId
           } (confidence ${d.confidence?.toFixed(1) ?? "?"}%).`,
           createdAt: d.timestamp,
@@ -63,7 +63,7 @@ export function RealtimeProvider({
         pushNotification({
           type: "unknown",
           title: "Wajah Tidak Dikenal",
-          description: `${d.name ?? d.employeeId ?? "Wajah tidak dikenal"} terdeteksi di ${
+          description: `${d.name ?? "Wajah tidak dikenal"} terdeteksi di ${
             d.cameraName ?? d.cameraId
           } (confidence ${d.confidence?.toFixed(1) ?? "?"}%).`,
           createdAt: d.timestamp,
