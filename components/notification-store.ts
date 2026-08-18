@@ -157,6 +157,13 @@ export function formatRelativeTime(
   return new Date(iso).toLocaleDateString("id-ID");
 }
 
+function cleanDescription(text: string): string {
+  return text
+    .replace(/\s*\(?EMP-[A-Za-z0-9]+\)?/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 export function useNotifications(): Notification[] {
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }
@@ -167,6 +174,7 @@ export function pushNotification(
   const entry: Notification = {
     ...n,
     id: n.id ?? `N-${Date.now()}`,
+    description: cleanDescription(n.description),
     time: n.createdAt ? formatRelativeTime(n.createdAt) : nowLabel(),
     read: false,
   };
@@ -213,6 +221,7 @@ export function markAllNotificationsRead() {
 export function seedNotifications(list: Notification[]) {
   const normalized = list.map((n) => ({
     ...n,
+    description: cleanDescription(n.description),
     time: formatRelativeTime(n.createdAt, n.time),
   }));
   const map = new Map<string, Notification>();
