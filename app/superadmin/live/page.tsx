@@ -238,12 +238,17 @@ export default function LiveMonitoringPage() {
                         ) : (
                           <>
                             {f.streamUrl && f.streamUrl.startsWith("http") ? (
-                              <iframe
+                              <img
                                 src={f.streamUrl}
-                                title={`Live CCTV ${f.name}`}
-                                className="absolute inset-0 h-full w-full border-0"
-                                allow="autoplay"
-                                allowFullScreen
+                                alt={`Live CCTV ${f.name}`}
+                                className="absolute inset-0 h-full w-full object-cover"
+                                onError={() =>
+                                  setFailedFeeds((prev) => {
+                                    const next = new Set(prev);
+                                    next.add(f.id);
+                                    return next;
+                                  })
+                                }
                               />
                             ) : failedFeeds.has(f.id) ? (
                               <VideoOff className="size-10 text-zinc-600" />

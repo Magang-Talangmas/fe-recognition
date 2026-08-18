@@ -211,12 +211,12 @@ export default function DashboardPage() {
                     <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                       {f.online && (f.streamUrl || f.snapshotUrl) ? (
                         f.streamUrl && f.streamUrl.startsWith("http") ? (
-                          <iframe
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
                             src={f.streamUrl}
-                            title={`Live CCTV ${f.name}`}
-                            className="absolute inset-0 h-full w-full border-0"
-                            allow="autoplay"
-                            allowFullScreen
+                            alt={`Live CCTV ${f.name}`}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            loading="lazy"
                           />
                         ) : (
                           // eslint-disable-next-line @next/next/no-img-element
