@@ -862,30 +862,8 @@ export default function AttendancePage() {
               <Badge variant="outline">
                 {previewItem?.permission?.type ?? "Hadir"}
               </Badge>
-              <Badge
-                variant={
-                  previewItem?.permission?.status === "APPROVED"
-                    ? "secondary"
-                    : previewItem?.permission?.status === "REJECTED"
-                      ? "destructive"
-                      : "outline"
-                }
-              >
-                {previewItem?.permission?.status
-                  ? permissionStatusLabel(previewItem.permission.status)
-                  : "—"}
-              </Badge>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              className="cursor-pointer"
-              onClick={() => setPreviewItem(null)}
-            >
-              Tutup
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
