@@ -63,7 +63,7 @@ export function RealtimeProvider({
         pushNotification({
           type: "unknown",
           title: "Wajah Tidak Dikenal",
-          description: `${d.name ?? d.employeeId ?? "Wajah unknown"} terdeteksi di ${
+          description: `${d.name ?? "Wajah tidak dikenal"} terdeteksi di ${
             d.cameraName ?? d.cameraId
           } (confidence ${d.confidence?.toFixed(1) ?? "?"}%).`,
           createdAt: d.timestamp,

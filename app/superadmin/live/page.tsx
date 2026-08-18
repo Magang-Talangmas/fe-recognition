@@ -328,7 +328,9 @@ export default function LiveMonitoringPage() {
                 >
                   <div className="flex min-w-0 flex-col leading-tight">
                     <span className="truncate text-sm font-medium">
-                      {r.name ?? r.employeeId ?? "Unknown"}
+                      {r.status === "Unknown"
+                        ? "Unknown"
+                        : (r.name ?? r.employeeId ?? "Unknown")}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
                       {r.cameraName || r.cameraId} · {r.time}
