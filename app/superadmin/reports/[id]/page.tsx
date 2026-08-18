@@ -20,6 +20,7 @@ import { TableState } from "@/components/table-state";
 import { LoadingState } from "@/components/loading-state";
 import { apiFetch } from "@/lib/api";
 import { useRealtime } from "@/lib/realtime";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 
 type ReportRow = {
   code: string;
@@ -93,6 +94,8 @@ export default function EmployeeReportPage() {
   useRealtime(["checkin", "unknown", "recognition"], () =>
     setReloadKey((k) => k + 1)
   );
+
+  useAutoRefresh(() => setReloadKey((k) => k + 1));
 
   function handleExport() {
     const headers = [

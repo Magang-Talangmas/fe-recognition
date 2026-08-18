@@ -21,7 +21,9 @@ import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
 import { WebRtcPlayer } from "@/components/webrtc-player";
 import { useRealtime, useRealtimeStatus } from "@/lib/realtime";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 import { API_URL, apiFetch } from "@/lib/api";
+import { formatTimeHM } from "@/lib/utils";
 
 type Feed = {
   id: string;
@@ -146,6 +148,12 @@ export default function LiveMonitoringPage() {
   useRealtime(["camera_offline"], (_event, data) => {
     setFeedOnline((data as { cameraId: string }).cameraId, false);
   });
+
+  useAutoRefresh(() => {
+    loadFeeds();
+    loadRecognitions();
+    loadNotifications();
+  }, { intervalMs: 10000 });
 
   async function refresh() {
     setRefreshing(true);
@@ -329,7 +337,7 @@ export default function LiveMonitoringPage() {
                       {r.name ?? r.employeeId ?? "Unknown"}
                     </span>
                     <span className="truncate text-xs text-muted-foreground">
-                      {r.cameraName || r.cameraId} · {r.time}
+                      {r.cameraName || r.cameraId} · {formatTimeHM(r.time)}
                     </span>
                   </div>
                 </div>

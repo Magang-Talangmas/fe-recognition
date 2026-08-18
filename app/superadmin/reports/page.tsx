@@ -34,6 +34,7 @@ import { StatCard } from "@/components/stat-card";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { useRealtime } from "@/lib/realtime";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 
 type ReportRow = {
   code: string;
@@ -145,6 +146,8 @@ export default function ReportsPage() {
   }
 
   useRealtime(["checkin", "unknown", "recognition"], refresh);
+
+  useAutoRefresh(refresh);
 
   function handleExport() {
     const headers = [

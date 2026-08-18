@@ -22,6 +22,7 @@ import {
   loadNotifications,
   type NotificationType,
 } from "@/components/notification-store";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 
 const typeMeta: Record<
   NotificationType,
@@ -61,6 +62,8 @@ export default function NotificationsPage() {
   useEffect(() => {
     loadNotifications();
   }, []);
+
+  useAutoRefresh(loadNotifications);
 
   const unread = items.filter((n) => !n.read).length;
 

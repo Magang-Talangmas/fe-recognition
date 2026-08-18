@@ -7,6 +7,7 @@ import {
   setRealtimeStatus,
 } from "@/lib/realtime";
 import { pushNotification } from "@/components/notification-store";
+import { formatTimeHM } from "@/lib/utils";
 
 export function RealtimeProvider({
   children,
@@ -122,7 +123,7 @@ export function RealtimeProvider({
           title: d.isLate ? "Terlambat Masuk" : "Check In",
           description: `${d.name} ${
             d.type === "CHECK_OUT" ? "check-out" : "check-in"
-          } pukul ${d.time}${d.isLate ? " (terlambat)" : ""}.`,
+          } pukul ${formatTimeHM(d.time)}${d.isLate ? " (terlambat)" : ""}.`,
         });
       } catch (err) {
         console.error("Gagal memproses event checkin:", err);

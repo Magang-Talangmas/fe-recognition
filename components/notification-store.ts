@@ -135,7 +135,11 @@ function getSnapshot() {
 }
 
 function nowLabel() {
-  return new Date().toLocaleTimeString("id-ID", { hour12: false });
+  return new Date().toLocaleTimeString("id-ID", {
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export function formatRelativeTime(

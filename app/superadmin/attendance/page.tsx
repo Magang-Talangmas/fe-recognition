@@ -40,6 +40,7 @@ import { DataTablePagination } from "@/components/data-table-pagination";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { useRealtime } from "@/lib/realtime";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 import { toast } from "sonner";
 import * as XLSX from "xlsx-js-style";
 
@@ -186,6 +187,8 @@ export default function AttendancePage() {
   }, [date, reloadKey]);
 
   useRealtime(["checkin", "recognition"], () => setReloadKey((k) => k + 1));
+
+  useAutoRefresh(() => setReloadKey((k) => k + 1));
 
   const items = useMemo(() => {
     const q = search.toLowerCase();

@@ -38,6 +38,7 @@ import { PageHeader } from "@/components/page-header";
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 import { toast } from "sonner";
 
 type Schedule = {
@@ -113,6 +114,8 @@ export default function SchedulePage() {
   function refresh() {
     setReloadKey((k) => k + 1);
   }
+
+  useAutoRefresh(refresh);
 
   function openAdd() {
     setEditing(null);

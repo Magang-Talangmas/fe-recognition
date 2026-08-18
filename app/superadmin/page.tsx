@@ -21,7 +21,9 @@ import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/stat-card";
 import { LoadingState } from "@/components/loading-state";
 import { useRealtime } from "@/lib/realtime";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 import { apiFetch, API_URL } from "@/lib/api";
+import { formatTimeHM } from "@/lib/utils";
 
 type Summary = {
   totalEmployees: number;
@@ -147,6 +149,8 @@ export default function DashboardPage() {
     ["recognition", "unknown", "checkin", "camera_online", "camera_offline"],
     () => setReloadKey((k) => k + 1)
   );
+
+  useAutoRefresh(() => setReloadKey((k) => k + 1));
 
   return (
     <div className="flex flex-col gap-6">
@@ -287,7 +291,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col leading-tight">
                   <span className="text-sm font-medium">{r.employeeName}</span>
                   <span className="text-xs text-muted-foreground">
-                    {r.camera} · {r.time}
+                    {r.camera} · {formatTimeHM(r.time)}
                   </span>
                 </div>
                 <Badge variant={statusBadgeVariant(r.status)}>{r.status}</Badge>

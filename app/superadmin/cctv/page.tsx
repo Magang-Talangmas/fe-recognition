@@ -51,6 +51,7 @@ import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { TableState } from "@/components/table-state";
 import { apiFetch } from "@/lib/api";
 import { useRealtime } from "@/lib/realtime";
+import { useAutoRefresh } from "@/lib/use-auto-refresh";
 import { toast } from "sonner";
 
 type Cctv = {
@@ -157,6 +158,8 @@ export default function CctvPage() {
   }
 
   useRealtime(["camera_online", "camera_offline"], refresh);
+
+  useAutoRefresh(refresh);
 
   function openAdd() {
     setEditing(null);
