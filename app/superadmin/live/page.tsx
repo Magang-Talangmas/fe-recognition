@@ -70,8 +70,6 @@ export default function LiveMonitoringPage() {
   const unknownRefetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onlineCount = feeds.filter((f) => f.online).length;
-  const unknownCount = live.filter((r) => r.status === "Unknown").length;
-  const offlineFeeds = feeds.filter((f) => !f.online);
 
   const loadFeeds = useCallback(async () => {
     try {
@@ -334,56 +332,8 @@ export default function LiveMonitoringPage() {
                       {r.cameraName || r.cameraId} · {r.time}
                     </span>
                   </div>
-                  <div className="flex flex-col items-end gap-0.5">
-                    <span className="text-xs font-semibold text-foreground">
-                      {r.confidence.toFixed(1)}%
-                    </span>
-                    <Badge
-                      variant={r.status === "Verified" ? "secondary" : "destructive"}
-                    >
-                      {r.status}
-                    </Badge>
-                  </div>
                 </div>
               ))}
-            </CardContent>
-          </Card>
-
-          <Card
-            className={`rounded-lg ${
-              offlineFeeds.length > 0 || unknownCount > 0
-                ? "border-destructive/40"
-                : ""
-            }`}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <CircleAlert className="size-4 text-destructive" />
-                Peringatan
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm">
-              {offlineFeeds.length === 0 && unknownCount === 0 && (
-                <p className="text-muted-foreground">
-                  Tidak ada peringatan aktif.
-                </p>
-              )}
-              {offlineFeeds.map((f) => (
-                <p key={f.id} className="text-muted-foreground">
-                  Kamera{" "}
-                  <span className="font-medium text-foreground">{f.id}</span>{" "}
-                  offline. Wajah tidak terdeteksi di area {f.name}.
-                </p>
-              ))}
-              {unknownCount > 0 && (
-                <p className="text-muted-foreground">
-                  {unknownCount} wajah{" "}
-                  <span className="font-medium text-foreground">
-                    tidak dikenal
-                  </span>{" "}
-                  terdeteksi baru-baru ini.
-                </p>
-              )}
             </CardContent>
           </Card>
         </div>
