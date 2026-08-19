@@ -57,7 +57,11 @@ async function apiRequest<T>(path: string, options: RequestInit = {}) {
   }
 
   const json = (await res.json()) as ApiResponse<T>;
-  if (!json.success) throw new Error(json.message ?? "Terjadi kesalahan");
+  if (!json.success) {
+    throw new Error(
+      json.message ? `${json.message} (${path})` : `Terjadi kesalahan (${path})`
+    );
+  }
   return json;
 }
 
