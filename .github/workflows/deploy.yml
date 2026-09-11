@@ -1,0 +1,47 @@
+name: Deploy Frontend (fe-recognition)
+
+on:
+  push:
+    branches:
+      - development
+
+jobs:
+  deploy:
+    name: Deploy to Pop!_OS Server
+    runs-on: self-hosted
+    steps:
+      - name: Jalankan Deployment di Pop!_OS
+        run: |
+          set -e
+
+          # Memuat Node.js 20 dari NVM (karena Next.js 16 membutuhkan Node >= 20.9.0)
+          export NVM_DIR="$HOME/.nvm"
+          if [ -s "$NVM_DIR/nvm.sh" ]; then
+            \. "$NVM_DIR/nvm.sh"
+            nvm use 20
+          fi
+          export PATH=$HOME/.nvm/versions/node/$(nvm current 2>/dev/null)/bin:$PATH:/usr/local/bin:/usr/bin:/bin
+
+          echo "[1/5] Memulai deployment Frontend di server fisik Pop!_OS..."
+          cd /home/popos/projek-anakmagang/fe-recognition
+
+          echo "[2/5] Menarik pembaruan kode dari branch development..."
+          git fetch origin development
+          git reset --hard origin/development
+
+          echo "[3/5] Menginstal dependensi & build Next.js..."
+          npm install
+          npm run build
+
+          echo "[4/5] Me-reload PM2 fe-attendance..."
+          pm2 reload fe-attendance || pm2 restart fe-attendance
+          pm2 save
+
+          echo "[5/5] Menjalankan Health Check..."
+          sleep 3
+          curl -s -f http://localhost:3000 > /dev/null || {
+            echo "Health check gagal! Frontend tidak merespons di port 3000."
+            exit 1
+          }
+
+          echo "DEPLOYMENT SUKSES! Frontend berjalan normal di port 3000."
