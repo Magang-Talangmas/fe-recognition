@@ -60,6 +60,8 @@ type Cctv = {
   name: string;
   location: string;
   rtspUrl: string | null;
+  sourceType: "RTSP" | "RTMP";
+  streamPath: string | null;
   online: boolean;
   enabled: boolean;
   createdAt: string;
@@ -83,9 +85,19 @@ type CctvListData = {
   total_pages: number;
 };
 
-const emptyForm = {
+type CameraForm = {
+  name: string;
+  location: string;
+  sourceType: "RTSP" | "RTMP";
+  streamPath: string;
+  rtspUrl: string;
+};
+
+const emptyForm: CameraForm = {
   name: "",
   location: "",
+  sourceType: "RTSP",
+  streamPath: "",
   rtspUrl: "",
 };
 
@@ -170,7 +182,13 @@ export default function CctvPage() {
 
   function openEdit(c: Cctv) {
     setEditing(c);
-    setForm({ name: c.name, location: c.location, rtspUrl: c.rtspUrl ?? "" });
+    setForm({
+      name: c.name,
+      location: c.location,
+      sourceType: c.sourceType,
+      streamPath: c.streamPath ?? "",
+      rtspUrl: c.rtspUrl ?? "",
+    });
     setFormError("");
     setFormOpen(true);
   }
@@ -183,6 +201,8 @@ export default function CctvPage() {
       const body = {
         name: form.name,
         location: form.location,
+        sourceType: form.sourceType,
+        streamPath: form.streamPath,
         rtspUrl: form.rtspUrl,
       };
       if (editing) {
@@ -309,7 +329,7 @@ export default function CctvPage() {
         </Button>
         <Button className="cursor-pointer" onClick={openAdd}>
           <Plus />
-          Tambah CCTV
+          Tambah Kamera
         </Button>
       </PageHeader>
 
@@ -465,9 +485,9 @@ export default function CctvPage() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{editing ? "Edit CCTV" : "Tambah CCTV"}</DialogTitle>
+            <DialogTitle>{editing ? "Edit Kamera" : "Tambah Kamera"}</DialogTitle>
             <DialogDescription>
-              Lengkapi informasi kamera di bawah ini.
+              Hubungkan CCTV RTSP atau broadcast HP RTMP ke path MediaMTX.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="flex min-w-0 flex-col gap-4">
@@ -500,6 +520,34 @@ export default function CctvPage() {
               />
             </div>
             <div className="flex flex-col gap-2">
+              <Label htmlFor="c-source-type">Sumber Video</Label>
+              <select
+                id="c-source-type"
+                value={form.sourceType}
+                onChange={(e) =>
+                  updateField("sourceType", e.target.value as "RTSP" | "RTMP")
+                }
+                className="h-10 cursor-pointer rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <option value="RTSP">CCTV (RTSP)</option>
+                <option value="RTMP">Broadcast HP (RTMP)</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="c-stream-path">Path Stream</Label>
+              <Input
+                id="c-stream-path"
+                required
+                value={form.streamPath}
+                onChange={(e) => updateField("streamPath", e.target.value)}
+                placeholder={form.sourceType === "RTMP" ? "contoh: hp-lantai-2" : "contoh: stream"}
+              />
+              <p className="text-xs text-muted-foreground">
+                Path unik di MediaMTX, tanpa slash atau URL.
+              </p>
+            </div>
+            {form.sourceType === "RTSP" && (
+            <div className="flex flex-col gap-2">
               <Label htmlFor="c-rtsp">RTSP URL</Label>
               <Input
                 id="c-rtsp"
@@ -509,6 +557,7 @@ export default function CctvPage() {
                 placeholder="contoh: rtsp://user:pass@192.168.1.101:554"
               />
             </div>
+            )}
             <DialogFooter>
               <Button
                 variant="outline"
