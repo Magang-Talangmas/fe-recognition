@@ -225,12 +225,10 @@ export default function LiveMonitoringPage() {
                   <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                     {f.online ? (
                       <>
-                        {f.whepUrl &&
-                        !(f.streamUrl && f.streamUrl.startsWith("http")) ? (
+                        {f.whepUrl ? (
                           <>
                             <WebRtcPlayer
                               whepUrl={f.whepUrl}
-                              fallbackSrc={`${API_URL}${f.streamUrl ?? f.snapshotUrl}`}
                               className="absolute inset-0 h-full w-full"
                             />
                             <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
