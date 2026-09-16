@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/stat-card";
 import { LoadingState } from "@/components/loading-state";
+import { HlsPlayer } from "@/components/hls-player";
 import { WebRtcPlayer } from "@/components/webrtc-player";
 import { useRealtime } from "@/lib/realtime";
 import { useAutoRefresh } from "@/lib/use-auto-refresh";
@@ -51,6 +52,7 @@ type Feed = {
   rtspUrl: string | null;
   snapshotUrl: string | null;
   streamUrl: string | null;
+  hlsUrl: string | null;
   whepUrl: string | null;
 };
 
@@ -215,7 +217,12 @@ export default function DashboardPage() {
                     className="overflow-hidden rounded-lg border border-border/60"
                   >
                     <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
-                      {f.online && f.whepUrl ? (
+                      {f.online && f.hlsUrl ? (
+                        <HlsPlayer
+                          hlsUrl={f.hlsUrl}
+                          className="absolute inset-0 h-full w-full"
+                        />
+                      ) : f.online && f.whepUrl ? (
                         <WebRtcPlayer
                           whepUrl={f.whepUrl}
                           className="absolute inset-0 h-full w-full"

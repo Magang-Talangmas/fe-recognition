@@ -19,6 +19,7 @@ import {
 } from "@/components/notification-store";
 import { PageHeader } from "@/components/page-header";
 import { LoadingState } from "@/components/loading-state";
+import { HlsPlayer } from "@/components/hls-player";
 import { WebRtcPlayer } from "@/components/webrtc-player";
 import { useRealtime, useRealtimeStatus } from "@/lib/realtime";
 import { useAutoRefresh } from "@/lib/use-auto-refresh";
@@ -33,6 +34,7 @@ type Feed = {
   rtspUrl: string | null;
   snapshotUrl: string | null;
   streamUrl: string | null;
+  hlsUrl: string | null;
   whepUrl: string | null;
 };
 
@@ -225,7 +227,21 @@ export default function LiveMonitoringPage() {
                   <div className="relative flex aspect-video items-center justify-center bg-zinc-900">
                     {f.online ? (
                       <>
-                        {f.whepUrl ? (
+                        {f.hlsUrl ? (
+                          <>
+                            <HlsPlayer
+                              hlsUrl={f.hlsUrl}
+                              className="absolute inset-0 h-full w-full"
+                            />
+                            <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
+                              <span className="size-1.5 animate-pulse rounded-full bg-white" />
+                              LIVE
+                            </span>
+                            <span className="absolute bottom-3 right-3 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-zinc-300">
+                              {f.id}
+                            </span>
+                          </>
+                        ) : f.whepUrl ? (
                           <>
                             <WebRtcPlayer
                               whepUrl={f.whepUrl}
