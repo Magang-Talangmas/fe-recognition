@@ -47,11 +47,14 @@ type BoundingBox = {
 
 type LiveBboxMessage = {
   camera_id?: string;
+  frame_width?: number;
+  frame_height?: number;
   bounding_boxes?: Array<{ bounding_box?: BoundingBox; name?: string }>;
 };
 
 type BboxState = {
   boxes: BoundingBox[];
+  frame: { width: number; height: number };
   receivedAt: number;
 };
 
@@ -174,9 +177,15 @@ export default function LiveMonitoringPage() {
             ? [item.bounding_box]
             : [],
         );
+        const width = payload.frame_width && payload.frame_width > 0
+          ? payload.frame_width
+          : DETECTION_FRAME.width;
+        const height = payload.frame_height && payload.frame_height > 0
+          ? payload.frame_height
+          : DETECTION_FRAME.height;
         setBboxesByStream((previous) => ({
           ...previous,
-          [payload.camera_id!]: { boxes, receivedAt: Date.now() },
+          [payload.camera_id!]: { boxes, frame: { width, height }, receivedAt: Date.now() },
         }));
       } catch {
         // Ignore the initial connection event and malformed transient messages.
@@ -296,16 +305,19 @@ export default function LiveMonitoringPage() {
                               if (!latest || Date.now() - latest.receivedAt > 1000) return null;
 
                               return (
-                                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 aspect-[704/480] -translate-x-1/2">
+                                <div
+                                  className="pointer-events-none absolute inset-y-0 left-1/2 z-10 -translate-x-1/2"
+                                  style={{ aspectRatio: `${latest.frame.width} / ${latest.frame.height}` }}
+                                >
                                   {latest.boxes.map((boundingBox, index) => (
                                     <div
                                       key={`${index}-${boundingBox.x}-${boundingBox.y}`}
                                       className="absolute border-2 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]"
                                       style={{
-                                        left: `${(boundingBox.x / DETECTION_FRAME.width) * 100}%`,
-                                        top: `${(boundingBox.y / DETECTION_FRAME.height) * 100}%`,
-                                        width: `${(boundingBox.width / DETECTION_FRAME.width) * 100}%`,
-                                        height: `${(boundingBox.height / DETECTION_FRAME.height) * 100}%`,
+                                        left: `${(boundingBox.x / latest.frame.width) * 100}%`,
+                                        top: `${(boundingBox.y / latest.frame.height) * 100}%`,
+                                        width: `${(boundingBox.width / latest.frame.width) * 100}%`,
+                                        height: `${(boundingBox.height / latest.frame.height) * 100}%`,
                                       }}
                                     />
                                   ))}
