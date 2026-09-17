@@ -69,7 +69,7 @@ type LiveBboxMessage = {
 };
 
 type BboxState = {
-  boxes: Array<{ boundingBox: BoundingBox; name: string }>;
+  boxes: BoundingBox[];
   receivedAt: number;
 };
 
@@ -189,7 +189,7 @@ export default function DashboardPage() {
 
         const boxes = payload.bounding_boxes.flatMap((item) =>
           item.bounding_box
-            ? [{ boundingBox: item.bounding_box, name: item.name ?? "Unknown" }]
+            ? [item.bounding_box]
             : [],
         );
         setBboxesByStream((previous) => ({
@@ -285,7 +285,7 @@ export default function DashboardPage() {
 
                             return (
                               <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 aspect-[704/480] -translate-x-1/2">
-                                {latest.boxes.map(({ boundingBox, name }, index) => (
+                                {latest.boxes.map((boundingBox, index) => (
                                   <div
                                     key={`${index}-${boundingBox.x}-${boundingBox.y}`}
                                     className="absolute border-2 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]"
@@ -295,11 +295,7 @@ export default function DashboardPage() {
                                       width: `${(boundingBox.width / DETECTION_FRAME.width) * 100}%`,
                                       height: `${(boundingBox.height / DETECTION_FRAME.height) * 100}%`,
                                     }}
-                                  >
-                                    <span className="absolute -top-5 left-0 whitespace-nowrap bg-cyan-500 px-1.5 py-0.5 text-[10px] font-medium text-black">
-                                      {name}
-                                    </span>
-                                  </div>
+                                  />
                                 ))}
                               </div>
                             );
