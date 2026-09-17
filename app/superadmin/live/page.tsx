@@ -38,6 +38,37 @@ type Feed = {
   whepUrl: string | null;
 };
 
+type BoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+type LiveBboxMessage = {
+  camera_id?: string;
+  bounding_boxes?: Array<{ bounding_box?: BoundingBox; name?: string }>;
+};
+
+type BboxState = {
+  boxes: Array<{ boundingBox: BoundingBox; name: string }>;
+  receivedAt: number;
+};
+
+// The RTSP stream consumed by the detector is currently 704x480. These are
+// source-frame coordinates, not the dimensions of the responsive browser card.
+const DETECTION_FRAME = { width: 704, height: 480 };
+
+function streamPathFromHlsUrl(hlsUrl: string | null): string | null {
+  if (!hlsUrl) return null;
+  try {
+    const segments = new URL(hlsUrl).pathname.split("/").filter(Boolean);
+    return segments.at(-1) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 type Recognition = {
   id: string;
   employeeId: string | null;
@@ -70,6 +101,7 @@ export default function LiveMonitoringPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [failedFeeds, setFailedFeeds] = useState<Set<string>>(new Set());
+  const [bboxesByStream, setBboxesByStream] = useState<Record<string, BboxState>>({});
   const realtimeStatus = useRealtimeStatus();
   const unknownRefetchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -128,6 +160,31 @@ export default function LiveMonitoringPage() {
     };
     load();
   }, [loadFeeds, loadRecognitions, loadNotifications]);
+
+  useEffect(() => {
+    const stream = new EventSource("/api/live-bboxes");
+
+    stream.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as LiveBboxMessage;
+        if (!payload.camera_id || !payload.bounding_boxes) return;
+
+        const boxes = payload.bounding_boxes.flatMap((item) =>
+          item.bounding_box
+            ? [{ boundingBox: item.bounding_box, name: item.name ?? "Unknown" }]
+            : [],
+        );
+        setBboxesByStream((previous) => ({
+          ...previous,
+          [payload.camera_id!]: { boxes, receivedAt: Date.now() },
+        }));
+      } catch {
+        // Ignore the initial connection event and malformed transient messages.
+      }
+    };
+
+    return () => stream.close();
+  }, []);
 
   useRealtime(["recognition"], (_event, data) => {
     prependRecognition(data as Recognition);
@@ -233,6 +290,32 @@ export default function LiveMonitoringPage() {
                               hlsUrl={f.hlsUrl}
                               className="absolute inset-0 h-full w-full"
                             />
+                            {(() => {
+                              const streamPath = streamPathFromHlsUrl(f.hlsUrl);
+                              const latest = streamPath ? bboxesByStream[streamPath] : undefined;
+                              if (!latest || Date.now() - latest.receivedAt > 1000) return null;
+
+                              return (
+                                <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 aspect-[704/480] -translate-x-1/2">
+                                  {latest.boxes.map(({ boundingBox, name }, index) => (
+                                    <div
+                                      key={`${index}-${boundingBox.x}-${boundingBox.y}`}
+                                      className="absolute border-2 border-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]"
+                                      style={{
+                                        left: `${(boundingBox.x / DETECTION_FRAME.width) * 100}%`,
+                                        top: `${(boundingBox.y / DETECTION_FRAME.height) * 100}%`,
+                                        width: `${(boundingBox.width / DETECTION_FRAME.width) * 100}%`,
+                                        height: `${(boundingBox.height / DETECTION_FRAME.height) * 100}%`,
+                                      }}
+                                    >
+                                      <span className="absolute -top-5 left-0 whitespace-nowrap bg-cyan-500 px-1.5 py-0.5 text-[10px] font-medium text-black">
+                                        {name}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })()}
                             <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-red-600 px-2 py-0.5 text-xs font-medium text-white">
                               <span className="size-1.5 animate-pulse rounded-full bg-white" />
                               LIVE
